@@ -5,7 +5,7 @@ import dayjs from 'dayjs'
 import db from '../services/db'
 import { UnitService, SvcService, SolarService, InspService, StockService, CostService } from '../services/dataServices'
 import { pullFromCloud, processSyncQueue } from '../services/dataServices'
-import { exportRingkasanBulanan, exportServiceLog, exportSolarLog, exportInspeksiLog } from '../services/exportService'
+import { exportRingkasanBulanan, exportServiceLog, exportSolarLog, exportInspeksiLog, exportLaporanPDF } from '../services/exportService'
 import { SectionHeader, EmptyState, useToast, Toast, ConfirmModal } from '../components/UI'
 import { useSync } from '../hooks/useSync'
 
@@ -249,10 +249,10 @@ function OwSpare() {
 
 function OwExport() {
   const [msg,showMsg]=useToast(); const [loading,setLoading]=useState(''); const [exportMonth,setExportMonth]=useState(dayjs().format('YYYY-MM'))
-  const doExport=async(type)=>{setLoading(type);try{if(type==='service')await exportServiceLog();else if(type==='solar')await exportSolarLog();else if(type==='inspeksi')await exportInspeksiLog();else if(type==='bulanan'){const[year,month]=exportMonth.split('-').map(Number);await exportRingkasanBulanan(year,month)};showMsg('✅ File berhasil didownload!')}catch(e){showMsg('❌ Export gagal')};setLoading('')}
+  const doExport=async(type)=>{setLoading(type);try{if(type==='service')await exportServiceLog();else if(type==='solar')await exportSolarLog();else if(type==='inspeksi')await exportInspeksiLog();else if(type==='bulanan'){const[year,month]=exportMonth.split('-').map(Number);await exportRingkasanBulanan(year,month)}else if(type==='pdf'){const[year,month]=exportMonth.split('-').map(Number);await exportLaporanPDF(year,month)};showMsg('✅ File berhasil didownload!')}catch(e){showMsg('❌ Export gagal')};setLoading('')}
   return(
     <div className="page-enter"><Toast msg={msg}/>
-      <div className="card"><div className="card-header"><span className="card-title">📊 Export Bulanan</span></div><div style={{display:'flex',gap:10,alignItems:'flex-end'}}><div className="form-group" style={{flex:1,marginBottom:0}}><label className="form-label">Pilih Bulan</label><input type="month" className="form-input" value={exportMonth} onChange={e=>setExportMonth(e.target.value)}/></div><button className="btn btn-primary" onClick={()=>doExport('bulanan')} disabled={loading==='bulanan'}><i className="bi bi-file-earmark-excel-fill"/>{loading==='bulanan'?'...':'Download'}</button></div></div>
+      <div className="card"><div className="card-header"><span className="card-title">📊 Export Bulanan</span></div><div style={{display:'flex',gap:10,alignItems:'flex-end'}}><div className="form-group" style={{flex:1,marginBottom:0}}><label className="form-label">Pilih Bulan</label><input type="month" className="form-input" value={exportMonth} onChange={e=>setExportMonth(e.target.value)}/></div><button className="btn btn-primary" onClick={()=>doExport('bulanan')} disabled={loading==='bulanan'}><i className="bi bi-file-earmark-excel-fill"/>{loading==='bulanan'?'...':'Excel'}</button><button className="btn btn-secondary" onClick={()=>doExport('pdf')} disabled={loading==='pdf'} style={{background:'#e53e3e',color:'#fff',border:'none'}}><i className="bi bi-file-earmark-pdf-fill"/>{loading==='pdf'?'...':'PDF'}</button></div></div>
       <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(150px,1fr))',gap:10}}>
         {[{type:'service',ico:'🔧',title:'Service Log'},{type:'solar',ico:'⛽',title:'Solar Log'},{type:'inspeksi',ico:'📋',title:'Inspeksi'}].map(c=><div key={c.type} className="card" style={{textAlign:'center'}}><div style={{fontSize:24,marginBottom:6}}>{c.ico}</div><div style={{fontWeight:700,fontSize:13,marginBottom:10}}>{c.title}</div><button className="btn btn-secondary btn-full btn-sm" onClick={()=>doExport(c.type)} disabled={loading===c.type}><i className="bi bi-download"/>{loading===c.type?'...':'Excel'}</button></div>)}
       </div>

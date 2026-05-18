@@ -130,19 +130,17 @@ export default function DashboardPage() {
         </div>
       )}
 
-      {/* Overdue alerts */}
-      {unitStatus.overdue > 0 && (
-        <div className="alert alert-error">
-          <i className="bi bi-exclamation-octagon-fill" />
-          {unitStatus.overdue} unit melewati batas maintenance! Segera lakukan servis.
+      {/* Overdue alerts dengan nama unit */}
+      {data.units.filter(u => UnitService.operationalStatus(u) === 'overdue').map(u => (
+        <div key={u.lid} className="alert alert-error" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <span><i className="bi bi-exclamation-octagon-fill" /> <strong>{u.name}</strong> melewati batas maintenance!</span>
         </div>
-      )}
-      {unitStatus.hampir > 0 && (
-        <div className="alert alert-warn">
-          <i className="bi bi-exclamation-triangle-fill" />
-          {unitStatus.hampir} unit mendekati jadwal maintenance.
+      ))}
+      {data.units.filter(u => UnitService.operationalStatus(u) === 'hampir').map(u => (
+        <div key={u.lid} className="alert alert-warn" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <span><i className="bi bi-exclamation-triangle-fill" /> <strong>{u.name}</strong> mendekati jadwal maintenance.</span>
         </div>
-      )}
+      ))}
     </div>
   )
 }

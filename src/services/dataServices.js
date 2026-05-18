@@ -9,7 +9,7 @@ const TABLE_MAP = {
   units: 'units', svc_logs: 'service_logs', solar_logs: 'solar_logs',
   cost_logs: 'cost_logs', inspections: 'inspections',
   spare_parts: 'spare_parts', spare_stock: 'spare_stock',
-  daily_notes: 'daily_notes',
+  daily_notes: 'daily_notes', ritase_logs: 'ritase_logs',
 }
 
 async function queueSync(tableName, action, lid, payload) {
@@ -126,6 +126,21 @@ export async function pullFromCloud(onProgress) {
         await db.daily_notes.add({
           cloud_id: n.id, note_date: n.note_date, content: n.content || '',
           authorName: n.author_name || 'Mandor', created_at: n.created_at, synced: 1
+        })
+      }
+    }
+
+    onProgress?.('Mengambil data ritase...')
+    const { data: ritase } = await supabase.from('ritase_logs').select('*').order('date')
+    if (ritase) {
+      await db.ritase_logs.clear()
+      for (const r of ritase) {
+        const lu = await db.units.where('cloud_id').equals(r.unit_id || '').first()
+        await db.ritase_logs.add({
+          cloud_id: r.id, unit_lid: lu?.lid, unit_cloud_id: r.unit_id,
+          date: r.date, operatorName: r.operator_name || '',
+          jumlahRitase: r.jumlah_ritase || 0, volumePerRitase: r.volume_per_ritase || 0,
+          note: r.note || '', synced: 1
         })
       }
     }
@@ -414,5 +429,37 @@ export const DailyNoteService = {
     const n = await db.daily_notes.get(lid)
     await db.daily_notes.delete(lid)
     if (n?.cloud_id) await queueSync('daily_notes', 'delete', lid, { cloud_id: n.cloud_id })
+  }
+}
+
+// ── RITASE SERVICE ───────────────────────────────────────────────
+export const RitaseService = {
+  getAll: () => db.ritase_logs.orderBy('date').reverse().toArray(),
+  getByDate: (date) => db.ritase_logs.where('date').equals(date).toArray(),
+  getByMonth: (year, month) => {
+    const start = `${year}-${String(month).padStart(2,'0')}-01`
+    const end   = `${year}-${String(month).padStart(2,'0')}-31`
+    return db.ritase_logs.filter(r => r.date >= start && r.date <= end).toArray()
+  },
+
+  async add(data) {
+    const lid = await db.ritase_logs.add({ ...data, synced: 0, created_at: new Date().toISOString() })
+    const u = await db.units.get(data.unit_lid)
+    await queueSync('ritase_logs', 'insert', lid, {
+      unit_id: u?.cloud_id,
+      date: data.date,
+      operator_name: data.operatorName || '',
+      jumlah_ritase: num(data.jumlahRitase),
+      volume_per_ritase: num(data.volumePerRitase),
+      total_volume: num(data.jumlahRitase) * num(data.volumePerRitase),
+      note: data.note || '',
+    })
+    return lid
+  },
+
+  async delete(lid) {
+    const r = await db.ritase_logs.get(lid)
+    await db.ritase_logs.delete(lid)
+    if (r?.cloud_id) await queueSync('ritase_logs', 'delete', lid, { cloud_id: r.cloud_id })
   }
 }

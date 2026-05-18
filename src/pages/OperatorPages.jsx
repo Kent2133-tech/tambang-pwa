@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import dayjs from 'dayjs'
-import { UnitService, SolarService, InspService, StockService, PhotoService } from '../services/dataServices'
+import { UnitService, SolarService, InspService, StockService, PhotoService, RitaseService } from '../services/dataServices'
 import { ConfirmModal, PhotoUploader, PhotoThumb, useToast, Toast, SectionHeader, EmptyState, ExportRow } from '../components/UI'
 import { exportSolarLog, exportInspeksiLog } from '../services/exportService'
 import { useAuth } from '../hooks/useAuth'
@@ -371,6 +371,145 @@ export function SparePage() {
 
       {modal !== null && <SpareModal item={modal?.lid ? modal : null} onClose={() => setModal(null)} onSuccess={() => { setModal(null); showMsg('Tersimpan!'); load() }} />}
       {confirm && <ConfirmModal msg={`Hapus "${confirm.name}"?`} onConfirm={async () => { await StockService.delete(confirm.lid); showMsg('Dihapus'); setConfirm(null); load() }} onClose={() => setConfirm(null)} />}
+    </>
+  )
+}
+
+// ── RITASE PAGE ───────────────────────────────────────────────────
+function RitaseModal({ unit, onClose, onSuccess }) {
+  const { user } = useAuth()
+  const [f, setF] = useState({ date: today(), jumlahRitase: '', volumePerRitase: 6, note: '', operatorName: user?.name || '' })
+  const s = (k, v) => setF(p => ({ ...p, [k]: v }))
+  const totalVol = (parseFloat(f.jumlahRitase) || 0) * (parseFloat(f.volumePerRitase) || 0)
+
+  const save = async () => {
+    await RitaseService.add({ ...f, unit_lid: unit.lid, jumlahRitase: parseFloat(f.jumlahRitase) || 0, volumePerRitase: parseFloat(f.volumePerRitase) || 0 })
+    onSuccess()
+  }
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal" onClick={e => e.stopPropagation()}>
+        <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:16 }}>
+          <div style={{ fontFamily:'Space Grotesk', fontWeight:700, fontSize:16 }}>🚛 Input Ritase — {unit?.name}</div>
+          <button onClick={onClose} style={{ background:'none', border:'none', fontSize:22, cursor:'pointer', color:'var(--mu)', padding:'0 4px', lineHeight:1 }}>✕</button>
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+          <div className="form-group">
+            <label className="form-label">Tanggal</label>
+            <input type="date" className="form-input" value={f.date} onChange={e => s('date', e.target.value)} />
+          </div>
+          <div className="form-group">
+            <label className="form-label">Jumlah Ritase</label>
+            <input type="number" className="form-input" value={f.jumlahRitase} onChange={e => s('jumlahRitase', e.target.value)} placeholder="0" inputMode="numeric" />
+          </div>
+          <div className="form-group" style={{ gridColumn: 'span 2' }}>
+            <label className="form-label">Volume per Ritase (m³)</label>
+            <input type="number" className="form-input" value={f.volumePerRitase} onChange={e => s('volumePerRitase', e.target.value)} inputMode="decimal" step="0.5" />
+          </div>
+          <div className="form-group" style={{ gridColumn: 'span 2' }}>
+            <label className="form-label">Nama Operator</label>
+            <input className="form-input" value={f.operatorName} onChange={e => s('operatorName', e.target.value)} placeholder="Nama operator..." />
+          </div>
+        </div>
+        <div className="form-group">
+          <label className="form-label">Catatan</label>
+          <input className="form-input" value={f.note} onChange={e => s('note', e.target.value)} placeholder="Opsional..." />
+        </div>
+        {totalVol > 0 && (
+          <div className="alert alert-info" style={{ marginBottom: 12 }}>
+            Total Volume: <strong>{totalVol.toLocaleString('id-ID')} m³</strong>
+          </div>
+        )}
+        <div className="modal-footer">
+          <button className="btn btn-primary btn-full" onClick={save} disabled={!f.jumlahRitase}>
+            <i className="bi bi-floppy-fill" /> Simpan Ritase
+          </button>
+          <button className="btn btn-secondary" onClick={onClose}>Batal</button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+export function RitasePage() {
+  const [units, setUnits] = useState([])
+  const [logs, setLogs] = useState([])
+  const [modal, setModal] = useState(null)
+  const [confirm, setConfirm] = useState(null)
+  const [msg, showMsg] = useToast()
+  const todayStr = today()
+
+  const load = useCallback(async () => {
+    setUnits(await UnitService.getActive())
+    setLogs((await RitaseService.getAll()).slice(0, 60))
+  }, [])
+
+  useEffect(() => { load() }, [load])
+
+  const todayLogs = logs.filter(l => l.date === todayStr)
+  const totalRitaseHari = todayLogs.reduce((a, l) => a + (l.jumlahRitase || 0), 0)
+  const totalVolHari = todayLogs.reduce((a, l) => a + (l.jumlahRitase || 0) * (l.volumePerRitase || 0), 0)
+
+  return (
+    <>
+      <Toast msg={msg} />
+      <div className="page-enter">
+        <div style={{ fontFamily: 'Space Grotesk', fontWeight: 800, fontSize: 18, marginBottom: 14 }}>🚛 Ritase / Produksi</div>
+
+        <div className="stat-grid">
+          <div className="stat-card">
+            <div className="stat-val" style={{ color: 'var(--pr)' }}>{totalRitaseHari}</div>
+            <div className="stat-label">Ritase Hari Ini</div>
+          </div>
+          <div className="stat-card">
+            <div className="stat-val" style={{ color: 'var(--ok)', fontSize: 15 }}>{totalVolHari.toLocaleString('id-ID')} m³</div>
+            <div className="stat-label">Volume Hari Ini</div>
+          </div>
+        </div>
+
+        <SectionHeader title="Pilih Unit" />
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2,1fr)', gap: 8, marginBottom: 16 }}>
+          {units.map(u => {
+            const uLogs = todayLogs.filter(l => l.unit_lid === u.lid)
+            const uRitase = uLogs.reduce((a, l) => a + (l.jumlahRitase || 0), 0)
+            return (
+              <button key={u.lid} onClick={() => setModal(u)} style={{ background: '#fff', border: '1.5px solid var(--bd)', borderRadius: 10, padding: 12, textAlign: 'left', cursor: 'pointer', boxShadow: 'var(--sh)' }}>
+                <div style={{ fontWeight: 700, fontSize: 13 }}>{u.name}</div>
+                <div style={{ fontSize: 10, color: 'var(--mu)' }}>{u.type}</div>
+                {uRitase > 0 && <div style={{ fontSize: 11, color: 'var(--ok)', fontWeight: 600, marginTop: 2 }}>Hari ini: {uRitase} ritase</div>}
+              </button>
+            )
+          })}
+        </div>
+
+        <SectionHeader title={`Riwayat Ritase (${logs.length})`} />
+        {logs.length === 0 ? <EmptyState icon="bi-truck" text="Belum ada data ritase" /> : (
+          <div className="table-wrap">
+            <table>
+              <thead><tr><th>Tgl</th><th>Unit</th><th>Ritase</th><th>Volume</th><th>Operator</th><th></th></tr></thead>
+              <tbody>
+                {logs.map(l => {
+                  const unit = units.find(u => u.lid === l.unit_lid)
+                  return (
+                    <tr key={l.lid}>
+                      <td>{l.date}</td>
+                      <td style={{ fontWeight: 600 }}>{unit?.name || '-'}</td>
+                      <td style={{ fontWeight: 700, color: 'var(--pr)' }}>{l.jumlahRitase || 0}</td>
+                      <td>{((l.jumlahRitase || 0) * (l.volumePerRitase || 0)).toLocaleString('id-ID')} m³</td>
+                      <td style={{ fontSize: 11, color: 'var(--mu)' }}>{l.operatorName || '-'}</td>
+                      <td><button className="btn-icon btn-sm" onClick={() => setConfirm(l)}><i className="bi bi-trash3" /></button></td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      {modal && <RitaseModal unit={modal} onClose={() => setModal(null)} onSuccess={() => { setModal(null); showMsg('Ritase dicatat!'); load() }} />}
+      {confirm && <ConfirmModal msg="Hapus data ritase ini?" onConfirm={async () => { await RitaseService.delete(confirm.lid); showMsg('Dihapus'); setConfirm(null); load() }} onClose={() => setConfirm(null)} />}
     </>
   )
 }

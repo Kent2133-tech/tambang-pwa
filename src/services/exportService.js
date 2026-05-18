@@ -1,6 +1,8 @@
 import * as XLSX from 'xlsx'
 import dayjs from 'dayjs'
-import { SvcService, SolarService, InspService, StockService, CostService, UnitService } from './dataServices'
+import { SvcService, SolarService, InspService, StockService, CostService, UnitService, RitaseService } from './dataServices'
+import jsPDF from 'jspdf'
+import autoTable from 'jspdf-autotable'
 
 const rp = n => `Rp ${Math.round(n || 0).toLocaleString('id-ID')}`
 const today = () => dayjs().format('DD-MM-YYYY')
@@ -144,4 +146,104 @@ export async function exportRingkasanBulanan(year, month) {
   XLSX.utils.book_append_sheet(wb, ws4, 'Stok Spare')
 
   XLSX.writeFile(wb, `ringkasan_${monthLabel.replace(' ', '_')}.xlsx`)
+}
+
+export async function exportLaporanPDF(year, month) {
+  const units    = await UnitService.getAll()
+  const svcs     = await SvcService.getByMonth(year, month)
+  const solar    = await SolarService.getByMonth(year, month)
+  const costs    = await CostService.getByMonth(year, month)
+  const ritase   = await RitaseService.getByMonth(year, month)
+  const unitMap  = Object.fromEntries(units.map(u => [u.lid, u.name]))
+  const monthLabel = dayjs(`${year}-${String(month).padStart(2,'0')}-01`).format('MMMM YYYY')
+
+  const totalSolarL  = solar.reduce((a, s) => a + (s.liters || 0), 0)
+  const totalSolarRp = solar.reduce((a, s) => a + (s.liters || 0) * (s.pricePerLiter || 0), 0)
+  const totalSvcRp   = svcs.reduce((a, s) => a + (s.cost || 0), 0)
+  const totalCostRp  = costs.reduce((a, c) => a + (c.amount || 0), 0)
+  const grandTotal   = totalSolarRp + totalSvcRp + totalCostRp
+  const totalRitase  = ritase.reduce((a, r) => a + (r.jumlahRitase || 0), 0)
+  const totalVolume  = ritase.reduce((a, r) => a + (r.jumlahRitase || 0) * (r.volumePerRitase || 0), 0)
+
+  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
+  const W = doc.internal.pageSize.getWidth()
+
+  // Header
+  doc.setFillColor(44, 26, 14)
+  doc.rect(0, 0, W, 30, 'F')
+  doc.setTextColor(255, 255, 255)
+  doc.setFontSize(16); doc.setFont('helvetica', 'bold')
+  doc.text('SCRAPERS — Tambang System', W / 2, 12, { align: 'center' })
+  doc.setFontSize(10); doc.setFont('helvetica', 'normal')
+  doc.text(`Laporan Bulanan — ${monthLabel}`, W / 2, 20, { align: 'center' })
+  doc.text(`Dicetak: ${dayjs().format('DD/MM/YYYY HH:mm')}`, W / 2, 26, { align: 'center' })
+
+  // Summary boxes
+  doc.setTextColor(0, 0, 0)
+  doc.setFontSize(12); doc.setFont('helvetica', 'bold')
+  doc.text('Ringkasan Biaya', 14, 42)
+
+  autoTable(doc, {
+    startY: 46,
+    head: [['Uraian', 'Nilai']],
+    body: [
+      ['Total Solar', `${totalSolarL.toLocaleString('id-ID')} L — ${rp(totalSolarRp)}`],
+      ['Total Service', rp(totalSvcRp)],
+      ['Biaya Lainnya', rp(totalCostRp)],
+      ['GRAND TOTAL BIAYA', rp(grandTotal)],
+      ['Total Ritase', `${totalRitase.toLocaleString('id-ID')} ritase`],
+      ['Total Produksi', `${totalVolume.toLocaleString('id-ID')} m³`],
+    ],
+    styles: { fontSize: 9 },
+    headStyles: { fillColor: [44, 26, 14] },
+    columnStyles: { 0: { fontStyle: 'bold', cellWidth: 60 } },
+    bodyStyles: { lineColor: [220, 220, 220] },
+    didParseCell: (data) => {
+      if (data.row.index === 3 && data.section === 'body') {
+        data.cell.styles.fontStyle = 'bold'
+        data.cell.styles.textColor = [180, 0, 0]
+      }
+    }
+  })
+
+  // Service logs
+  if (svcs.length > 0) {
+    doc.setFontSize(12); doc.setFont('helvetica', 'bold')
+    doc.text('Riwayat Service', 14, doc.lastAutoTable.finalY + 12)
+    autoTable(doc, {
+      startY: doc.lastAutoTable.finalY + 16,
+      head: [['Tgl', 'Unit', 'Tipe', 'Jam', 'Biaya (Rp)', 'Operator']],
+      body: svcs.map(s => [s.date, unitMap[s.unit_lid] || '-', s.maintenanceType || '-', s.hourAtService || 0, Math.round(s.cost || 0).toLocaleString('id-ID'), s.operatorName || '-']),
+      styles: { fontSize: 8 },
+      headStyles: { fillColor: [44, 26, 14] },
+    })
+  }
+
+  // Solar logs
+  if (solar.length > 0) {
+    doc.setFontSize(12); doc.setFont('helvetica', 'bold')
+    doc.text('Pengisian Solar', 14, doc.lastAutoTable.finalY + 12)
+    autoTable(doc, {
+      startY: doc.lastAutoTable.finalY + 16,
+      head: [['Tgl', 'Unit', 'Liter', 'Harga/L', 'Total (Rp)', 'Operator']],
+      body: solar.map(s => [s.date, unitMap[s.unit_lid] || '-', s.liters || 0, Math.round(s.pricePerLiter || 0).toLocaleString('id-ID'), Math.round((s.liters || 0) * (s.pricePerLiter || 0)).toLocaleString('id-ID'), s.operatorName || '-']),
+      styles: { fontSize: 8 },
+      headStyles: { fillColor: [44, 26, 14] },
+    })
+  }
+
+  // Ritase logs
+  if (ritase.length > 0) {
+    doc.setFontSize(12); doc.setFont('helvetica', 'bold')
+    doc.text('Data Ritase / Produksi', 14, doc.lastAutoTable.finalY + 12)
+    autoTable(doc, {
+      startY: doc.lastAutoTable.finalY + 16,
+      head: [['Tgl', 'Unit', 'Ritase', 'Vol/Ritase (m³)', 'Total (m³)', 'Operator']],
+      body: ritase.map(r => [r.date, unitMap[r.unit_lid] || '-', r.jumlahRitase || 0, r.volumePerRitase || 0, ((r.jumlahRitase || 0) * (r.volumePerRitase || 0)).toLocaleString('id-ID'), r.operatorName || '-']),
+      styles: { fontSize: 8 },
+      headStyles: { fillColor: [44, 26, 14] },
+    })
+  }
+
+  doc.save(`laporan_${monthLabel.replace(' ', '_')}.pdf`)
 }

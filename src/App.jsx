@@ -7,26 +7,30 @@ import OwnerDashboard from './pages/OwnerDashboard'
 import DashboardPage from './pages/DashboardPage'
 import { KendaraanPage, MesinPage } from './pages/UnitPages'
 import ServicePage from './pages/ServicePage'
-import { SolarPage, InspeksiPage, SparePage } from './pages/OperatorPages'
+import { SolarPage, InspeksiPage, SparePage, RitasePage } from './pages/OperatorPages'
 import SettingsPage from './pages/SettingsPage'
-import DailyNotesPage from './pages/DailyNotesPage' // <-- IMPORT HALAMAN CATATAN HARIAN
+import DailyNotesPage from './pages/DailyNotesPage'
+import MaintenanceCalendarPage from './pages/MaintenanceCalendarPage'
 
 const NAV_ITEMS = [
-  { id:'home',     icon:'bi-house-fill',          label:'Beranda',      section:'UTAMA' },
-  { id:'kendaraan',icon:'bi-truck-front-fill',    label:'Kendaraan',    section:'UNIT' },
-  { id:'mesin',    icon:'bi-gear-wide-connected', label:'Mesin Produksi' },
-  { id:'service',  icon:'bi-tools',               label:'Riwayat Service',section:'OPERASIONAL' },
-  { id:'solar',    icon:'bi-fuel-pump-fill',      label:'Input Solar' },
+  { id:'home',     icon:'bi-house-fill',           label:'Beranda',         section:'UTAMA' },
+  { id:'kendaraan',icon:'bi-truck-front-fill',     label:'Kendaraan',       section:'UNIT' },
+  { id:'mesin',    icon:'bi-gear-wide-connected',  label:'Mesin Produksi' },
+  { id:'kalender', icon:'bi-calendar2-check-fill', label:'Kalender Service' },
+  { id:'service',  icon:'bi-tools',                label:'Riwayat Service', section:'OPERASIONAL' },
+  { id:'solar',    icon:'bi-fuel-pump-fill',       label:'Input Solar' },
+  { id:'ritase',   icon:'bi-truck',                label:'Ritase / Produksi' },
   { id:'inspeksi', icon:'bi-clipboard2-check-fill',label:'Inspeksi' },
-  { id:'notes',    icon:'bi-journal-text',        label:'Catatan Harian', section:'LAPANGAN' }, // <-- MENU CATATAN HARIAN
-  { id:'spare',    icon:'bi-boxes',               label:'Stok Spare',     section:'DATA' },
-  { id:'settings', icon:'bi-gear-fill',           label:'Pengaturan' },
+  { id:'notes',    icon:'bi-journal-text',         label:'Catatan Harian',  section:'LAPANGAN' },
+  { id:'spare',    icon:'bi-boxes',                label:'Stok Spare',      section:'DATA' },
+  { id:'settings', icon:'bi-gear-fill',            label:'Pengaturan' },
 ]
 
 const PAGE_MAP = {
   home: DashboardPage, kendaraan: KendaraanPage, mesin: MesinPage,
-  service: ServicePage, solar: SolarPage,
-  inspeksi: InspeksiPage, notes: DailyNotesPage, spare: SparePage, settings: SettingsPage, // <-- ROUTING CATATAN HARIAN
+  kalender: MaintenanceCalendarPage,
+  service: ServicePage, solar: SolarPage, ritase: RitasePage,
+  inspeksi: InspeksiPage, notes: DailyNotesPage, spare: SparePage, settings: SettingsPage,
 }
 
 export default function App() {
