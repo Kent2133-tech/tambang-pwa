@@ -9,6 +9,7 @@ const TABLE_MAP = {
   units: 'units', svc_logs: 'service_logs', solar_logs: 'solar_logs',
   cost_logs: 'cost_logs', inspections: 'inspections',
   spare_parts: 'spare_parts', spare_stock: 'spare_stock',
+  daily_notes: 'daily_notes',
 }
 
 async function queueSync(tableName, action, lid, payload) {
@@ -114,6 +115,18 @@ export async function pullFromCloud(onProgress) {
       await db.spare_stock.clear()
       for (const s of stock) {
         await db.spare_stock.add({ cloud_id: s.id, name: s.name || s.nama, qty: s.qty || 0, unit: s.unit || s.satuan || 'pcs', synced: 1 })
+      }
+    }
+
+    onProgress?.('Mengambil catatan harian...')
+    const { data: notes } = await supabase.from('daily_notes').select('*').order('note_date')
+    if (notes) {
+      await db.daily_notes.clear()
+      for (const n of notes) {
+        await db.daily_notes.add({
+          cloud_id: n.id, note_date: n.note_date, content: n.content || '',
+          authorName: n.author_name || 'Mandor', created_at: n.created_at, synced: 1
+        })
       }
     }
 
