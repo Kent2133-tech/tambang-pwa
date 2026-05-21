@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 
-const OWNER_PIN = import.meta.env.VITE_OWNER_PIN
+const OWNER_PIN = import.meta.env.VITE_OWNER_PIN || '251025'
 const MAX_ATTEMPTS = 5
 const LOCKOUT_SECONDS = 30
 
