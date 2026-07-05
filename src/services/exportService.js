@@ -1,6 +1,6 @@
 import * as XLSX from 'xlsx'
 import dayjs from 'dayjs'
-import { SvcService, SolarService, InspService, StockService, CostService, UnitService, RitaseService } from './dataServices'
+import { SvcService, SolarService, InspService, StockService, CostService, UnitService, RitaseService, TransaksiService } from './dataServices'
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
 
@@ -173,7 +173,7 @@ export async function exportLaporanPDF(year, month) {
   doc.rect(0, 0, W, 30, 'F')
   doc.setTextColor(255, 255, 255)
   doc.setFontSize(16); doc.setFont('helvetica', 'bold')
-  doc.text('SCRAPERS — Tambang System', W / 2, 12, { align: 'center' })
+  doc.text('GRAPERS — Tambang System', W / 2, 12, { align: 'center' })
   doc.setFontSize(10); doc.setFont('helvetica', 'normal')
   doc.text(`Laporan Bulanan — ${monthLabel}`, W / 2, 20, { align: 'center' })
   doc.text(`Dicetak: ${dayjs().format('DD/MM/YYYY HH:mm')}`, W / 2, 26, { align: 'center' })
@@ -246,4 +246,47 @@ export async function exportLaporanPDF(year, month) {
   }
 
   doc.save(`laporan_${monthLabel.replace(' ', '_')}.pdf`)
+}
+
+// ── EXPORT TRANSAKSI KAS — match kolom sheet TRANSAKSI di Excel ──
+function transaksiRows(all) {
+  return all.map(t => ({
+    'Tanggal': dayjs(t.date).format('DD/MM/YYYY'),
+    'Tipe': t.tipe,
+    'Kategori': t.kategori || '',
+    'Keterangan': t.keterangan || '',
+    'Komoditas': t.komoditas || '-',
+    'Qty': t.qty ?? '',
+    'Nominal': t.nominal ?? '',
+    'Dari': t.dari || '-',
+    'Ke': t.ke || '-',
+  }))
+}
+
+export async function exportTransaksiExcel(dateFrom, dateTo) {
+  const all = await TransaksiService.getByDateRange(dateFrom, dateTo)
+  const data = transaksiRows(all)
+  const ws = XLSX.utils.json_to_sheet(data)
+  if (data.length) autoWidth(ws, data)
+  const wb = XLSX.utils.book_new()
+  XLSX.utils.book_append_sheet(wb, ws, 'TRANSAKSI')
+  XLSX.writeFile(wb, `transaksi_${dateFrom}_${dateTo}.xlsx`)
+}
+
+export async function exportTransaksiCSV(dateFrom, dateTo) {
+  const all = await TransaksiService.getByDateRange(dateFrom, dateTo)
+  const data = transaksiRows(all)
+  const cols = ['Tanggal', 'Tipe', 'Kategori', 'Keterangan', 'Komoditas', 'Qty', 'Nominal', 'Dari', 'Ke']
+  const esc = v => {
+    const s = String(v ?? '')
+    return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s
+  }
+  const lines = [cols.join(','), ...data.map(row => cols.map(c => esc(row[c])).join(','))]
+  const blob = new Blob(['﻿' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8;' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = `transaksi_${dateFrom}_${dateTo}.csv`
+  a.click()
+  URL.revokeObjectURL(url)
 }

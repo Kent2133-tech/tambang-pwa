@@ -4,12 +4,18 @@ import dayjs from 'dayjs'
 
 const num = v => parseFloat(v) || 0
 
+// ── TRANSAKSI KAS — konstanta (match sheet TRANSAKSI di Excel) ───
+export const TRANSAKSI_KATEGORI_MASUK = ['Penjualan Pasir', 'Penjualan Emas', 'Pendapatan Lain']
+export const TRANSAKSI_KATEGORI_KELUAR = ['Solar', 'Upah Galian', 'Karung', 'Gaji Operator', 'Maintenance', 'Biaya Oknum', 'Administrasi', 'Lain-lain']
+export const KAS_OPTIONS = ['Kas Besar', 'Bank', 'Kas Mandor']
+
 // ── SYNC ENGINE ─────────────────────────────────────────────────
 const TABLE_MAP = {
   units: 'units', svc_logs: 'service_logs', solar_logs: 'solar_logs',
   cost_logs: 'cost_logs', inspections: 'inspections',
   spare_parts: 'spare_parts', spare_stock: 'spare_stock',
   daily_notes: 'daily_notes', ritase_logs: 'ritase_logs',
+  transaksi_logs: 'transaksi_logs',
 }
 
 async function queueSync(tableName, action, lid, payload) {
@@ -141,6 +147,20 @@ export async function pullFromCloud(onProgress) {
           date: r.date, operatorName: r.operator_name || '',
           jumlahRitase: r.jumlah_ritase || 0, volumePerRitase: r.volume_per_ritase || 0,
           note: r.note || '', synced: 1
+        })
+      }
+    }
+
+    onProgress?.('Mengambil transaksi kas...')
+    const { data: trx } = await supabase.from('transaksi_logs').select('*').order('date')
+    if (trx) {
+      await db.transaksi_logs.clear()
+      for (const t of trx) {
+        await db.transaksi_logs.add({
+          cloud_id: t.id, date: t.date, tipe: t.tipe, kategori: t.kategori || '',
+          keterangan: t.keterangan || '', komoditas: t.komoditas || '-',
+          qty: t.qty, nominal: t.nominal, dari: t.dari || '-', ke: t.ke || '-',
+          operatorName: t.operator_name || '', synced: 1
         })
       }
     }
@@ -461,5 +481,45 @@ export const RitaseService = {
     const r = await db.ritase_logs.get(lid)
     await db.ritase_logs.delete(lid)
     if (r?.cloud_id) await queueSync('ritase_logs', 'delete', lid, { cloud_id: r.cloud_id })
+  }
+}
+
+// ── TRANSAKSI KAS SERVICE ────────────────────────────────────────
+export const TransaksiService = {
+  getAll: () => db.transaksi_logs.orderBy('date').reverse().toArray(),
+  getByDateRange: (start, end) => db.transaksi_logs.filter(l => l.date >= start && l.date <= end).sortBy('date'),
+  getRecent: (days = 7) => {
+    const start = dayjs().subtract(days, 'day').format('YYYY-MM-DD')
+    return db.transaksi_logs.filter(l => l.date >= start).sortBy('date').then(r => r.reverse())
+  },
+
+  async add(data) {
+    const lid = await db.transaksi_logs.add({ ...data, synced: 0 })
+    await queueSync('transaksi_logs', 'insert', lid, {
+      date: data.date, tipe: data.tipe, kategori: data.kategori || '',
+      keterangan: data.keterangan || '', komoditas: data.komoditas || '-',
+      qty: data.qty ?? null, nominal: data.nominal ?? null,
+      dari: data.dari || '-', ke: data.ke || '-', operator_name: data.operatorName || '',
+    })
+    return lid
+  },
+
+  async update(lid, data) {
+    await db.transaksi_logs.update(lid, { ...data, synced: 0 })
+    const t = await db.transaksi_logs.get(lid)
+    if (t?.cloud_id) {
+      await queueSync('transaksi_logs', 'update', lid, {
+        cloud_id: t.cloud_id, date: t.date, tipe: t.tipe, kategori: t.kategori || '',
+        keterangan: t.keterangan || '', komoditas: t.komoditas || '-',
+        qty: t.qty ?? null, nominal: t.nominal ?? null,
+        dari: t.dari || '-', ke: t.ke || '-', operator_name: t.operatorName || '',
+      })
+    }
+  },
+
+  async delete(lid) {
+    const t = await db.transaksi_logs.get(lid)
+    await db.transaksi_logs.delete(lid)
+    if (t?.cloud_id) await queueSync('transaksi_logs', 'delete', lid, { cloud_id: t.cloud_id })
   }
 }

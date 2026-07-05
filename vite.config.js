@@ -9,9 +9,9 @@ export default defineConfig({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.ico', 'icons/*.png'],
       manifest: {
-        name: 'Tambang System — SCRAPERS',
+        name: 'Tambang System — GRAPERS',
         short_name: 'Tambang',
-        description: 'Sistem manajemen alat berat tambang pasir SCRAPERS',
+        description: 'Sistem manajemen alat berat tambang pasir GRAPERS',
         theme_color: '#2C1A0E',
         background_color: '#F1F1F1',
         display: 'standalone',

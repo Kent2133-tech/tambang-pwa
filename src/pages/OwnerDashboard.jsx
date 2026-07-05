@@ -1,11 +1,12 @@
 import DailyNotesPage from './DailyNotesPage'
+import { TransaksiModal, TransaksiRow } from './TransaksiPage'
 import { useState, useEffect, useCallback } from 'react'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, LineChart, Line, PieChart, Pie, Cell } from 'recharts'
 import dayjs from 'dayjs'
 import db from '../services/db'
-import { UnitService, SvcService, SolarService, InspService, StockService, CostService } from '../services/dataServices'
+import { UnitService, SvcService, SolarService, InspService, StockService, CostService, TransaksiService } from '../services/dataServices'
 import { pullFromCloud, processSyncQueue } from '../services/dataServices'
-import { exportRingkasanBulanan, exportServiceLog, exportSolarLog, exportInspeksiLog, exportLaporanPDF } from '../services/exportService'
+import { exportRingkasanBulanan, exportServiceLog, exportSolarLog, exportInspeksiLog, exportLaporanPDF, exportTransaksiExcel, exportTransaksiCSV } from '../services/exportService'
 import { SectionHeader, EmptyState, useToast, Toast, ConfirmModal } from '../components/UI'
 import { useSync } from '../hooks/useSync'
 
@@ -22,6 +23,7 @@ const OWNER_TABS = [
   { id:'ranking',   icon:'bi-trophy',       label:'Ranking Unit' },
   { id:'dep',       icon:'bi-graph-down',   label:'Depresiasi',      section:'LAPORAN' },
   { id:'spare',     icon:'bi-boxes',        label:'Spare Part' },
+  { id:'transaksi', icon:'bi-cash-coin',    label:'Transaksi Kas' },
   { id:'export',    icon:'bi-download',     label:'Export Excel' },
   { id:'sync',      icon:'bi-cloud-arrow-up', label:'Sync Cloud' },
   { id:'notes',     icon:'bi-journal-text',  label:'Catatan Harian', section:'LAPANGAN' },
@@ -275,7 +277,117 @@ function OwSync() {
   )
 }
 
-const OWNER_PAGES = { dashboard:OwDash, biaya:OwBiaya, solar:OwSolar, maint:OwMaint, ranking:OwRank, dep:OwDep, spare:OwSpare, export:OwExport, sync:OwSync, notes:DailyNotesPage }
+function OwTransaksi() {
+  const [all, setAll] = useState([])
+  const [modal, setModal] = useState(null) // null | 'new' | txObj
+  const [confirm, setConfirm] = useState(null)
+  const [msg, showMsg] = useToast()
+  const [dateFrom, setDateFrom] = useState(dayjs().startOf('month').format('YYYY-MM-DD'))
+  const [dateTo, setDateTo] = useState(dayjs().format('YYYY-MM-DD'))
+  const [exporting, setExporting] = useState('')
+
+  const load = useCallback(async () => setAll(await TransaksiService.getAll()), [])
+  useEffect(() => { load() }, [load])
+
+  const filtered = all.filter(t => t.date >= dateFrom && t.date <= dateTo)
+  const totalMasuk = filtered.filter(t => t.tipe === 'Masuk').reduce((a, t) => a + (t.nominal || 0), 0)
+  const totalKeluar = filtered.filter(t => t.tipe === 'Keluar').reduce((a, t) => a + (t.nominal || 0), 0)
+  const keluarTanpaNominal = filtered.filter(t => t.tipe === 'Keluar' && !t.nominal && t.qty).length
+
+  const grouped = filtered.reduce((acc, t) => {
+    const key = dayjs(t.date).format('MMMM YYYY')
+    if (!acc[key]) acc[key] = []
+    acc[key].push(t)
+    return acc
+  }, {})
+
+  const setPreset = (p) => {
+    if (p === 'week') setDateFrom(dayjs().startOf('week').format('YYYY-MM-DD'))
+    else if (p === '2week') setDateFrom(dayjs().subtract(13, 'day').format('YYYY-MM-DD'))
+    else if (p === 'month') setDateFrom(dayjs().startOf('month').format('YYYY-MM-DD'))
+    setDateTo(dayjs().format('YYYY-MM-DD'))
+  }
+
+  const doExport = async (type) => {
+    setExporting(type)
+    try {
+      if (type === 'xlsx') await exportTransaksiExcel(dateFrom, dateTo)
+      else await exportTransaksiCSV(dateFrom, dateTo)
+      showMsg('✅ File berhasil didownload!')
+    } catch (e) {
+      showMsg('❌ Export gagal')
+    }
+    setExporting('')
+  }
+
+  return (
+    <div className="page-enter">
+      <Toast msg={msg} />
+      <div className="stat-grid" style={{ gridTemplateColumns: 'repeat(2,1fr)', marginBottom: keluarTanpaNominal > 0 ? 6 : 14 }}>
+        <div className="stat-card"><div className="stat-val" style={{ fontSize: 16, color: 'var(--ok)' }}>{rp(totalMasuk)}</div><div className="stat-label">Nominal Masuk (Rp tercatat)</div></div>
+        <div className="stat-card"><div className="stat-val" style={{ fontSize: 16, color: 'var(--er)' }}>{rp(totalKeluar)}</div><div className="stat-label">Nominal Keluar (Rp tercatat)</div></div>
+      </div>
+      {keluarTanpaNominal > 0 && (
+        <div style={{ fontSize: 11, color: 'var(--mu)', marginBottom: 14 }}>
+          <i className="bi bi-info-circle" /> {keluarTanpaNominal} transaksi Keluar (Solar/Upah Galian) belum dihitung di atas — nilai rupiahnya dihitung otomatis di Excel dari Qty.
+        </div>
+      )}
+
+      <div className="card">
+        <div className="card-header"><span className="card-title">📊 Filter & Export</span></div>
+        <div style={{ display: 'flex', gap: 8, marginBottom: 10, flexWrap: 'wrap' }}>
+          {[['week', 'Minggu Ini'], ['2week', '2 Minggu Terakhir'], ['month', 'Bulan Ini']].map(([k, l]) => (
+            <button key={k} className="btn btn-secondary btn-sm" onClick={() => setPreset(k)}>{l}</button>
+          ))}
+        </div>
+        <div style={{ display: 'flex', gap: 10, alignItems: 'flex-end', flexWrap: 'wrap' }}>
+          <div className="form-group" style={{ marginBottom: 0 }}>
+            <label className="form-label">Dari</label>
+            <input type="date" className="form-input" value={dateFrom} onChange={e => setDateFrom(e.target.value)} />
+          </div>
+          <div className="form-group" style={{ marginBottom: 0 }}>
+            <label className="form-label">Sampai</label>
+            <input type="date" className="form-input" value={dateTo} onChange={e => setDateTo(e.target.value)} />
+          </div>
+          <button className="btn btn-primary" onClick={() => doExport('xlsx')} disabled={exporting === 'xlsx'}>
+            <i className="bi bi-file-earmark-excel-fill" /> {exporting === 'xlsx' ? '...' : 'Export Excel'}
+          </button>
+          <button className="btn btn-secondary" onClick={() => doExport('csv')} disabled={exporting === 'csv'}>
+            <i className="bi bi-filetype-csv" /> {exporting === 'csv' ? '...' : 'Export CSV'}
+          </button>
+        </div>
+      </div>
+
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', margin: '14px 0 8px' }}>
+        <span style={{ fontWeight: 700, fontSize: 13 }}>Semua Transaksi ({filtered.length})</span>
+        <button className="btn btn-primary btn-sm" onClick={() => setModal('new')}><i className="bi bi-plus-lg" /> Tambah</button>
+      </div>
+
+      {Object.keys(grouped).length === 0 ? (
+        <EmptyState icon="bi-cash-coin" text="Belum ada transaksi pada periode ini" />
+      ) : (
+        Object.entries(grouped).map(([month, rows]) => (
+          <div key={month} className="card" style={{ marginBottom: 10 }}>
+            <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--mu)', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 4 }}>{month} · {rows.length} transaksi</div>
+            {rows.map(t => <TransaksiRow key={t.lid} t={t} onEdit={() => setModal(t)} onDelete={() => setConfirm(t)} />)}
+          </div>
+        ))
+      )}
+
+      {modal !== null && (
+        <TransaksiModal existing={modal === 'new' ? null : modal} onClose={() => setModal(null)}
+          onSuccess={() => { setModal(null); showMsg(modal === 'new' ? '✅ Transaksi tersimpan!' : '✅ Transaksi diperbarui!'); load() }} />
+      )}
+      {confirm && (
+        <ConfirmModal msg={`Hapus transaksi ${dayjs(confirm.date).format('DD MMM YYYY')} (${confirm.kategori || confirm.tipe})?`}
+          onConfirm={async () => { await TransaksiService.delete(confirm.lid); showMsg('Dihapus'); setConfirm(null); load() }}
+          onClose={() => setConfirm(null)} />
+      )}
+    </div>
+  )
+}
+
+const OWNER_PAGES = { dashboard:OwDash, biaya:OwBiaya, solar:OwSolar, maint:OwMaint, ranking:OwRank, dep:OwDep, spare:OwSpare, transaksi:OwTransaksi, export:OwExport, sync:OwSync, notes:DailyNotesPage }
 
 // ── MAIN OWNER SHELL — sama kayak operator (topbar + hamburger) ──
 export default function OwnerDashboard({ onClose }) {
@@ -309,7 +421,7 @@ export default function OwnerDashboard({ onClose }) {
       <div className={`owner-sidebar${sidebarOpen ? ' open' : ''}`}>
         <div style={{ padding:'20px 16px 12px', borderBottom:'1px solid rgba(255,255,255,.08)' }}>
           <div style={{ fontFamily:'Space Grotesk', fontWeight:800, fontSize:18, color:'var(--ac)' }}>👑 Owner Panel</div>
-          <div style={{ fontSize:11, color:'rgba(212,184,150,.6)', marginTop:3 }}>SCRAPERS Dashboard</div>
+          <div style={{ fontSize:11, color:'rgba(212,184,150,.6)', marginTop:3 }}>GRAPERS Dashboard</div>
         </div>
         <nav style={{ flex:1, overflowY:'auto', padding:8, WebkitOverflowScrolling:'touch' }}>
           {OWNER_TABS.map(item => (

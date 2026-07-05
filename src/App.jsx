@@ -10,6 +10,7 @@ import ServicePage from './pages/ServicePage'
 import { SolarPage, InspeksiPage, SparePage, RitasePage } from './pages/OperatorPages'
 import SettingsPage from './pages/SettingsPage'
 import DailyNotesPage from './pages/DailyNotesPage'
+import TransaksiPage from './pages/TransaksiPage'
 import MaintenanceCalendarPage from './pages/MaintenanceCalendarPage'
 
 const NAV_ITEMS = [
@@ -22,6 +23,7 @@ const NAV_ITEMS = [
   { id:'ritase',   icon:'bi-truck',                label:'Ritase / Produksi' },
   { id:'inspeksi', icon:'bi-clipboard2-check-fill',label:'Inspeksi' },
   { id:'notes',    icon:'bi-journal-text',         label:'Catatan Harian',  section:'LAPANGAN' },
+  { id:'transaksi',icon:'bi-cash-coin',            label:'Transaksi Kas' },
   { id:'spare',    icon:'bi-boxes',                label:'Stok Spare',      section:'DATA' },
   { id:'settings', icon:'bi-gear-fill',            label:'Pengaturan' },
 ]
@@ -30,7 +32,7 @@ const PAGE_MAP = {
   home: DashboardPage, kendaraan: KendaraanPage, mesin: MesinPage,
   kalender: MaintenanceCalendarPage,
   service: ServicePage, solar: SolarPage, ritase: RitasePage,
-  inspeksi: InspeksiPage, notes: DailyNotesPage, spare: SparePage, settings: SettingsPage,
+  inspeksi: InspeksiPage, notes: DailyNotesPage, transaksi: TransaksiPage, spare: SparePage, settings: SettingsPage,
 }
 
 export default function App() {
@@ -71,7 +73,7 @@ export default function App() {
 
       <div className={`sidebar ${sidebarOpen ? '' : 'hidden'}`}>
         <div className="sb-header">
-          <div className="sb-logo">⛏ SCRAPERS</div>
+          <div className="sb-logo">⛏ GRAPERS</div>
           <div className="sb-sub">Tambang System</div>
           <div style={{ marginTop:10, background:'rgba(255,255,255,.07)', borderRadius:8, padding:'8px 10px' }}>
             <div style={{ fontWeight:700, fontSize:13, color:'#fff' }}>Selamat Datang</div>
@@ -106,7 +108,7 @@ export default function App() {
             style={{ background:'none', border:'none', color:'var(--st)', fontSize:22, cursor:'pointer', padding:4, display:'flex', alignItems:'center' }}>
             <i className="bi bi-list" />
           </button>
-          <span className="topbar-title">⛏ SCRAPERS</span>
+          <span className="topbar-title">⛏ GRAPERS</span>
           
           {/* Badge khusus untuk Topbar (Mobile) */}
           <div className="badge-mobile" style={{ marginLeft:'auto' }}>

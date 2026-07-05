@@ -22,7 +22,7 @@ export default function LoginPage() {
     <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--sb)', padding: 24 }}>
       <div style={{ background: '#fff', borderRadius: 20, padding: 32, width: '100%', maxWidth: 360, textAlign: 'center', boxShadow: '0 8px 40px rgba(0,0,0,.3)' }}>
         <div style={{ fontSize: 48, marginBottom: 8 }}>⛏</div>
-        <div style={{ fontFamily: 'Space Grotesk', fontWeight: 800, fontSize: 24, color: 'var(--sb)', marginBottom: 4 }}>SCRAPERS</div>
+        <div style={{ fontFamily: 'Space Grotesk', fontWeight: 800, fontSize: 24, color: 'var(--sb)', marginBottom: 4 }}>GRAPERS</div>
         <div style={{ fontSize: 12, color: 'var(--mu)', marginBottom: 28 }}>Tambang System · Masuk dengan PIN</div>
 
         <div style={{ marginBottom: 16 }}>

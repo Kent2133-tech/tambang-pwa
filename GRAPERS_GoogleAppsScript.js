@@ -1,6 +1,6 @@
 /**
  * ╔══════════════════════════════════════════════════════════════╗
- * ║   SCRAPERS Finance System — Auto Sync dari Supabase          ║
+ * ║   GRAPERS Finance System — Auto Sync dari Supabase          ║
  * ║   Google Apps Script                                          ║
  * ║                                                              ║
  * ║   Cara pasang:                                               ║
@@ -273,7 +273,7 @@ function updateSyncTimestamp() {
 
 // ── MAIN SYNC FUNCTION ────────────────────────────────────────────
 function syncAll() {
-  Logger.log('=== SCRAPERS Auto Sync mulai ===')
+  Logger.log('=== GRAPERS Auto Sync mulai ===')
   Logger.log(`Waktu: ${new Date().toLocaleString('id-ID')}`)
 
   try {
@@ -313,7 +313,7 @@ function syncAll() {
 // ── MANUAL TRIGGER DARI MENU ──────────────────────────────────────
 function onOpen() {
   SpreadsheetApp.getUi()
-    .createMenu('⛏️ SCRAPERS Sync')
+    .createMenu('⛏️ GRAPERS Sync')
     .addItem('🔄 Sync Data Sekarang', 'syncAll')
     .addItem('⛏️ Sync Produksi Saja', 'syncProduksi')
     .addItem('💰 Sync Kas Harian Saja', 'syncKasHarian')
@@ -360,7 +360,7 @@ function deleteTrigger() {
  * CARA PAKAI:
  *
  * 1. PASANG SCRIPT:
- *    - Buka spreadsheet SCRAPERS
+ *    - Buka spreadsheet GRAPERS
  *    - Klik Extensions → Apps Script
  *    - Hapus kode default, paste semua kode ini
  *    - Klik Save (ikon disket)
@@ -372,11 +372,11 @@ function deleteTrigger() {
  *
  * 3. SETUP AUTO-SYNC:
  *    - Tutup Apps Script, balik ke spreadsheet
- *    - Akan ada menu baru "⛏️ SCRAPERS Sync" di atas
+ *    - Akan ada menu baru "⛏️ GRAPERS Sync" di atas
  *    - Klik "Setup Auto-Sync Harian" → aktif setiap hari 07:00 & 18:00 WIB
  *
  * 4. SYNC MANUAL:
- *    - Klik menu "⛏️ SCRAPERS Sync" → "Sync Data Sekarang"
+ *    - Klik menu "⛏️ GRAPERS Sync" → "Sync Data Sekarang"
  *
  * PENTING:
  * - Tanggal di spreadsheet = tanggal yang mandor input, BUKAN tanggal sync
