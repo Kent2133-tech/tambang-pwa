@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react'
 import { useSync } from './hooks/useSync'
 import { OperatorService } from './services/dataServices'
-import { SyncBadge } from './components/UI'
+import { SyncBadge, useToast, Toast } from './components/UI'
 import { OwnerPinModal } from './components/OwnerPinModal'
 import OwnerDashboard from './pages/OwnerDashboard'
+import { TransaksiModal } from './pages/TransaksiPage'
 import DashboardPage from './pages/DashboardPage'
 import { KendaraanPage, MesinPage } from './pages/UnitPages'
 import ServicePage from './pages/ServicePage'
@@ -35,24 +36,31 @@ const PAGE_MAP = {
   inspeksi: InspeksiPage, notes: DailyNotesPage, transaksi: TransaksiPage, spare: SparePage, settings: SettingsPage,
 }
 
-// Menu harian yang paling sering dipakai mandor — 1 tap dari bottom nav
+// Menu harian yang paling sering dipakai mandor — 1 tap dari bottom nav.
+// Slot tengah dipakai FAB "+" (catat transaksi cepat dari halaman manapun).
 const BOTTOM_NAV = [
-  { id:'home',      icon:'bi-house-fill',     label:'Beranda' },
-  { id:'solar',     icon:'bi-fuel-pump-fill', label:'Solar' },
-  { id:'ritase',    icon:'bi-truck',          label:'Ritase' },
-  { id:'notes',     icon:'bi-journal-text',   label:'Catatan' },
-  { id:'transaksi', icon:'bi-cash-coin',      label:'Kas' },
+  { id:'home',   icon:'bi-house-fill',     label:'Beranda' },
+  { id:'solar',  icon:'bi-fuel-pump-fill', label:'Solar' },
+  { id:'notes',  icon:'bi-journal-text',   label:'Catatan' },
+  { id:'ritase', icon:'bi-truck',          label:'Ritase' },
 ]
 
-function BottomNav({ page, onNavigate }) {
+function BottomNav({ page, onNavigate, onFabClick }) {
+  const renderItem = item => (
+    <button key={item.id} className={`bnav-item ${page === item.id ? 'active' : ''}`} onClick={() => onNavigate(item.id)}>
+      <i className={`bi ${item.icon}`} />
+      {item.label}
+    </button>
+  )
   return (
     <nav className="bottom-nav">
-      {BOTTOM_NAV.map(item => (
-        <button key={item.id} className={`bnav-item ${page === item.id ? 'active' : ''}`} onClick={() => onNavigate(item.id)}>
-          <i className={`bi ${item.icon}`} />
-          {item.label}
+      {BOTTOM_NAV.slice(0, 2).map(renderItem)}
+      <div className="bnav-fab-slot">
+        <button className="bnav-fab" onClick={onFabClick} aria-label="Catat Transaksi">
+          <i className="bi bi-plus-lg" />
         </button>
-      ))}
+      </div>
+      {BOTTOM_NAV.slice(2).map(renderItem)}
     </nav>
   )
 }
@@ -63,6 +71,9 @@ export default function App() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [showPinModal, setShowPinModal] = useState(false)
   const [ownerMode, setOwnerMode] = useState(false)
+  const [showQuickTransaksi, setShowQuickTransaksi] = useState(false)
+  const [refreshKey, setRefreshKey] = useState(0) // remount halaman aktif setelah catat cepat via FAB
+  const [msg, showMsg] = useToast()
 
   useEffect(() => { OperatorService.init() }, [])
 
@@ -129,9 +140,16 @@ export default function App() {
             <SyncBadge online={online} syncing={syncing} lastSync={lastSync} />
           </div>
         </div>
-        <div className="main-content"><div key={page}><PageComp /></div></div>
-        <BottomNav page={page} onNavigate={navigate} />
+        <div className="main-content"><div key={`${page}-${refreshKey}`}><PageComp /></div></div>
+        <BottomNav page={page} onNavigate={navigate} onFabClick={() => setShowQuickTransaksi(true)} />
       </div>
+
+      <Toast msg={msg} />
+
+      {showQuickTransaksi && (
+        <TransaksiModal onClose={() => setShowQuickTransaksi(false)}
+          onSuccess={() => { setShowQuickTransaksi(false); setRefreshKey(k => k + 1); showMsg('✅ Transaksi tersimpan!') }} />
+      )}
 
       {showPinModal && (
         <OwnerPinModal onSuccess={() => { setShowPinModal(false); setOwnerMode(true) }} onClose={() => setShowPinModal(false)} />

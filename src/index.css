@@ -52,7 +52,8 @@ h1,h2,h3,h4,h5,h6 { font-family: 'Space Grotesk', sans-serif; }
 .main-content {
   flex: 1; overflow-y: auto; overflow-x: hidden;
   padding: 16px;
-  padding-bottom: calc(var(--bnav-h) + var(--safe-bottom) + 16px);
+  /* jarak floating nav (12px) + tinggi nav + overhang FAB */
+  padding-bottom: calc(var(--bnav-h) + var(--safe-bottom) + 52px);
 }
 .owner-main-content {
   flex: 1; overflow-y: auto; overflow-x: hidden;
@@ -77,16 +78,32 @@ h1,h2,h3,h4,h5,h6 { font-family: 'Space Grotesk', sans-serif; }
 }
 .topbar-title { font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 16px; color: var(--st); }
 
-/* ── BOTTOM NAV (mobile) ── */
+/* ── BOTTOM NAV (mobile, floating pill) ── */
 .bottom-nav {
-  position: fixed; left: 0; right: 0; bottom: 0; z-index: 250;
-  height: calc(var(--bnav-h) + var(--safe-bottom));
-  padding-bottom: var(--safe-bottom);
-  background: var(--cw);
-  border-top: 1px solid var(--bd);
-  box-shadow: 0 -2px 16px rgba(44,26,14,.08);
+  position: fixed; left: 12px; right: 12px;
+  bottom: calc(12px + var(--safe-bottom));
+  z-index: 250;
+  height: var(--bnav-h);
+  background: rgba(255,255,255,.72);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  backdrop-filter: blur(20px) saturate(180%);
+  border: 1px solid rgba(255,255,255,.6);
+  border-radius: 28px;
+  box-shadow: 0 8px 28px rgba(44,26,14,.18);
   display: grid; grid-template-columns: repeat(5, 1fr);
 }
+.bnav-fab-slot { position: relative; }
+.bnav-fab {
+  position: absolute; left: 50%; top: -24px; transform: translateX(-50%);
+  width: 58px; height: 58px; border-radius: 50%;
+  border: none; cursor: pointer;
+  background: linear-gradient(135deg, var(--pr), var(--gold));
+  color: #fff; font-size: 24px;
+  display: flex; align-items: center; justify-content: center;
+  box-shadow: 0 6px 18px rgba(119,85,55,.45), 0 2px 6px rgba(44,26,14,.25);
+  transition: transform .15s ease, box-shadow .15s ease;
+}
+.bnav-fab:active { transform: translateX(-50%) scale(.94); box-shadow: 0 3px 10px rgba(119,85,55,.4); }
 .bnav-item {
   display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
   border: none; background: none; cursor: pointer; color: var(--mu);
@@ -105,6 +122,70 @@ h1,h2,h3,h4,h5,h6 { font-family: 'Space Grotesk', sans-serif; }
 .bnav-item.active { color: var(--pr); }
 .bnav-item.active i { transform: translateY(-2px); }
 .bnav-item.active::after { opacity: 1; transform: scale(1); }
+
+/* ── WALLET (Owner Beranda) ── */
+.wallet-hero {
+  background: linear-gradient(135deg, var(--sb), var(--prd));
+  border-radius: 20px;
+  padding: 20px 0 18px;
+  color: #fff;
+  overflow: hidden;
+}
+.wallet-scroll {
+  display: flex; gap: 12px;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  scroll-padding-inline: 20px;
+  padding: 0 20px;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+.wallet-scroll::-webkit-scrollbar { display: none; }
+.wallet-card {
+  flex: 0 0 100%;
+  scroll-snap-align: start;
+  background: rgba(255,255,255,.08);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255,255,255,.15);
+  border-radius: 16px;
+  padding: 20px;
+  text-align: center;
+}
+.wallet-card-label {
+  font-size: 12px; font-weight: 600; letter-spacing: .5px;
+  color: rgba(255,255,255,.75);
+  display: flex; align-items: center; justify-content: center; gap: 6px;
+}
+.wallet-card-amount {
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 30px; font-weight: 700; margin-top: 8px;
+  white-space: nowrap;
+}
+.wallet-dots { display: flex; justify-content: center; gap: 6px; margin-top: 14px; }
+.wallet-dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  border: none; padding: 0; cursor: pointer;
+  background: rgba(255,255,255,.3);
+  transition: background .2s ease, transform .2s ease;
+}
+.wallet-dot.active { background: #fff; transform: scale(1.25); }
+.wallet-actions { display: flex; justify-content: center; gap: 20px; margin-top: 20px; }
+.wallet-action {
+  display: flex; flex-direction: column; align-items: center; gap: 6px;
+  background: none; border: none; cursor: pointer;
+  color: rgba(255,255,255,.85);
+  font-family: 'DM Sans', sans-serif; font-size: 11px; font-weight: 600;
+}
+.wallet-action-btn {
+  width: 52px; height: 52px; border-radius: 50%;
+  background: rgba(255,255,255,.12);
+  border: 1px solid rgba(255,255,255,.1);
+  display: flex; align-items: center; justify-content: center;
+  color: #fff; font-size: 20px;
+  transition: background .2s ease, transform .15s ease;
+}
+.wallet-action:active .wallet-action-btn { transform: scale(.94); background: rgba(255,255,255,.22); }
 
 /* ── SIDEBAR ITEMS ── */
 .sb-header { padding: 24px 16px 12px; border-bottom: 1px solid rgba(255,255,255,.08); }

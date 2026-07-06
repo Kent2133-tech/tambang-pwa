@@ -16,17 +16,23 @@ const QTY_LABEL = {
 const QTY_ONLY = ['Upah Galian', 'Solar']
 const QTY_AND_NOMINAL = ['Penjualan Pasir', 'Penjualan Emas']
 
-function emptyForm() {
-  return {
-    date: today(), tipe: 'Keluar', kategori: TRANSAKSI_KATEGORI_KELUAR[0], keterangan: '',
+const komoditasFor = (kategori) => kategori === 'Penjualan Pasir' ? 'Pasir' : kategori === 'Penjualan Emas' ? 'Emas' : '-'
+
+function emptyForm(tipe = 'Keluar') {
+  const f = {
+    date: today(), tipe, kategori: TRANSAKSI_KATEGORI_KELUAR[0], keterangan: '',
     komoditas: '-', qty: '', nominal: '', dari: 'Kas Mandor', ke: '-', operatorName: 'Mandor',
   }
+  if (tipe === 'Masuk') { f.kategori = TRANSAKSI_KATEGORI_MASUK[0]; f.dari = '-'; f.ke = 'Kas Mandor' }
+  else if (tipe === 'Pindah') { f.kategori = 'Pindah Kas'; f.dari = 'Kas Mandor'; f.ke = 'Kas Besar' }
+  f.komoditas = komoditasFor(f.kategori)
+  return f
 }
 
 // ── FORM TAMBAH / EDIT TRANSAKSI (dipakai operator & owner) ──────
-export function TransaksiModal({ existing, onClose, onSuccess }) {
+export function TransaksiModal({ existing, defaultTipe, onClose, onSuccess }) {
   const isEdit = !!existing
-  const [f, setF] = useState(existing ? { ...existing, qty: existing.qty ?? '', nominal: existing.nominal ?? '' } : emptyForm())
+  const [f, setF] = useState(existing ? { ...existing, qty: existing.qty ?? '', nominal: existing.nominal ?? '' } : emptyForm(defaultTipe))
   const [saving, setSaving] = useState(false)
   const s = (k, v) => setF(p => ({ ...p, [k]: v }))
 
@@ -35,8 +41,6 @@ export function TransaksiModal({ existing, onClose, onSuccess }) {
   const showQty = QTY_ONLY.includes(f.kategori) || QTY_AND_NOMINAL.includes(f.kategori)
   const showNominal = !QTY_ONLY.includes(f.kategori)
   const qtyRequired = QTY_ONLY.includes(f.kategori)
-
-  const komoditasFor = (kategori) => kategori === 'Penjualan Pasir' ? 'Pasir' : kategori === 'Penjualan Emas' ? 'Emas' : '-'
 
   const setTipe = (tipe) => {
     setF(p => {

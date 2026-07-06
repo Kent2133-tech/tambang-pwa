@@ -1,13 +1,13 @@
 import DailyNotesPage from './DailyNotesPage'
 import { TransaksiModal, TransaksiRow } from './TransaksiPage'
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, LineChart, Line, PieChart, Pie, Cell } from 'recharts'
 import dayjs from 'dayjs'
 import db from '../services/db'
-import { UnitService, SvcService, SolarService, InspService, StockService, CostService, TransaksiService } from '../services/dataServices'
+import { UnitService, SvcService, SolarService, InspService, StockService, CostService, TransaksiService, computeKasSaldo, KAS_OPTIONS } from '../services/dataServices'
 import { pullFromCloud, processSyncQueue } from '../services/dataServices'
 import { exportRingkasanBulanan, exportServiceLog, exportSolarLog, exportInspeksiLog, exportLaporanPDF, exportTransaksiExcel, exportTransaksiCSV } from '../services/exportService'
-import { SectionHeader, EmptyState, useToast, Toast, ConfirmModal, PageHeader, ModalShell, DataList, StatusDot, CHART_COLORS } from '../components/UI'
+import { SectionHeader, EmptyState, useToast, Toast, ConfirmModal, PageHeader, ModalShell, DataList, StatusDot, Skeleton, CHART_COLORS } from '../components/UI'
 import { useSync } from '../hooks/useSync'
 
 const rp = n => `Rp ${Math.round(n||0).toLocaleString('id-ID')}`
@@ -15,7 +15,8 @@ const num = n => (n||0).toLocaleString('id-ID')
 const today = () => dayjs().format('YYYY-MM-DD')
 
 const OWNER_TABS = [
-  { id:'dashboard', icon:'bi-speedometer2', label:'Dashboard',       section:'OVERVIEW' },
+  { id:'beranda',   icon:'bi-wallet2',      label:'Beranda',         section:'OVERVIEW' },
+  { id:'dashboard', icon:'bi-speedometer2', label:'Dashboard' },
   { id:'biaya',     icon:'bi-cash-stack',   label:'Analisa Biaya',   section:'ANALITIK' },
   { id:'solar',     icon:'bi-fuel-pump',    label:'Solar Analytics' },
   { id:'maint',     icon:'bi-tools',        label:'Maintenance' },
@@ -27,6 +28,97 @@ const OWNER_TABS = [
   { id:'sync',      icon:'bi-cloud-arrow-up', label:'Sync Cloud' },
   { id:'notes',     icon:'bi-journal-text',  label:'Catatan Harian', section:'LAPANGAN' },
 ]
+
+// ── BERANDA — saldo kas per akun + transaksi terakhir ────────────
+const KAS_ICON = { 'Kas Besar':'bi-safe2', 'Bank':'bi-bank', 'Kas Mandor':'bi-wallet2' }
+const KAS_GAP = 12 // harus sama dengan gap .wallet-scroll di index.css
+
+function OwBeranda({ onNavigate }) {
+  const [logs, setLogs] = useState(null)
+  const [modal, setModal] = useState(null) // 'Masuk' | 'Keluar' | 'Pindah' | null
+  const [activeCard, setActiveCard] = useState(0)
+  const [msg, showMsg] = useToast()
+  const scrollRef = useRef(null)
+
+  const load = useCallback(async () => setLogs(await TransaksiService.getAll()), [])
+  useEffect(() => { load() }, [load])
+
+  const saldo = useMemo(() => computeKasSaldo(logs || []), [logs])
+  const recent = (logs || []).slice(0, 8)
+
+  const cardStep = (el) => (el.firstElementChild?.offsetWidth || el.clientWidth) + KAS_GAP
+  const onScroll = (e) => {
+    const el = e.currentTarget
+    const idx = Math.round(el.scrollLeft / cardStep(el))
+    setActiveCard(Math.min(KAS_OPTIONS.length - 1, Math.max(0, idx)))
+  }
+  const goTo = (i) => {
+    const el = scrollRef.current
+    if (el) el.scrollTo({ left: i * cardStep(el), behavior: 'smooth' })
+  }
+
+  const ACTIONS = [
+    { tipe:'Masuk',  icon:'bi-arrow-down', label:'Masuk' },
+    { tipe:'Keluar', icon:'bi-arrow-up',   label:'Keluar' },
+    { tipe:'Pindah', icon:'bi-arrow-left-right', label:'Pindah' },
+  ]
+
+  return (
+    <div className="page-enter">
+      <Toast msg={msg} />
+      <PageHeader icon="bi-wallet2" title="Beranda" subtitle="Saldo kas & transaksi terakhir" />
+
+      <div className="wallet-hero">
+        <div className="wallet-scroll" ref={scrollRef} onScroll={onScroll}>
+          {KAS_OPTIONS.map(kas => (
+            <div key={kas} className="wallet-card">
+              <div className="wallet-card-label"><i className={`bi ${KAS_ICON[kas]}`} /> {kas}</div>
+              <div className="wallet-card-amount" style={(saldo[kas] || 0) < 0 ? { color:'#FF9B9B' } : undefined}>
+                {logs === null ? '…' : rp(saldo[kas])}
+              </div>
+            </div>
+          ))}
+        </div>
+        <div className="wallet-dots">
+          {KAS_OPTIONS.map((kas, i) => (
+            <button key={kas} className={`wallet-dot ${activeCard === i ? 'active' : ''}`} onClick={() => goTo(i)} aria-label={kas} />
+          ))}
+        </div>
+        <div className="wallet-actions">
+          {ACTIONS.map(a => (
+            <button key={a.tipe} className="wallet-action" onClick={() => setModal(a.tipe)}>
+              <span className="wallet-action-btn"><i className={`bi ${a.icon}`} /></span>
+              {a.label}
+            </button>
+          ))}
+          <button className="wallet-action" onClick={() => onNavigate?.('transaksi')}>
+            <span className="wallet-action-btn"><i className="bi bi-clock-history" /></span>
+            Riwayat
+          </button>
+        </div>
+      </div>
+
+      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', margin:'18px 0 8px' }}>
+        <span style={{ fontWeight:700, fontSize:13 }}>Transaksi Terakhir</span>
+        <button className="btn btn-secondary btn-sm" onClick={() => onNavigate?.('transaksi')}>Lihat Semua</button>
+      </div>
+      {logs === null ? (
+        <Skeleton rows={4} />
+      ) : recent.length === 0 ? (
+        <EmptyState icon="bi-cash-coin" text="Belum ada transaksi tercatat" />
+      ) : (
+        <div className="card">
+          {recent.map(t => <TransaksiRow key={t.lid} t={t} />)}
+        </div>
+      )}
+
+      {modal && (
+        <TransaksiModal defaultTipe={modal} onClose={() => setModal(null)}
+          onSuccess={() => { setModal(null); showMsg('✅ Transaksi tersimpan!'); load() }} />
+      )}
+    </div>
+  )
+}
 
 // ── OWNER DASHBOARD ──────────────────────────────────────────────
 function OwDash() {
@@ -529,13 +621,13 @@ function OwSync() {
   )
 }
 
-const OWNER_PAGES = { dashboard:OwDash, biaya:OwBiaya, solar:OwSolar, maint:OwMaint, ranking:OwRank, dep:OwDep, spare:OwSpare, transaksi:OwTransaksi, export:OwExport, sync:OwSync, notes:DailyNotesPage }
+const OWNER_PAGES = { beranda:OwBeranda, dashboard:OwDash, biaya:OwBiaya, solar:OwSolar, maint:OwMaint, ranking:OwRank, dep:OwDep, spare:OwSpare, transaksi:OwTransaksi, export:OwExport, sync:OwSync, notes:DailyNotesPage }
 
 // ── MAIN OWNER SHELL — sama kayak operator (topbar + hamburger) ──
 export default function OwnerDashboard({ onClose }) {
-  const [tab, setTab] = useState('dashboard')
+  const [tab, setTab] = useState('beranda')
   const [sidebarOpen, setSidebarOpen] = useState(false)
-  const Page = OWNER_PAGES[tab] || OwDash
+  const Page = OWNER_PAGES[tab] || OwBeranda
   const currentTab = OWNER_TABS.find(t => t.id === tab)
 
   const navigate = (id) => { setTab(id); setSidebarOpen(false) }
@@ -585,7 +677,7 @@ export default function OwnerDashboard({ onClose }) {
       {/* Page content */}
       <div className="owner-main-content">
         <div key={tab}>
-          <Page/>
+          <Page onNavigate={navigate} />
         </div>
       </div>
     </div>

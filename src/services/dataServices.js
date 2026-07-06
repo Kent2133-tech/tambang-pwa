@@ -523,3 +523,21 @@ export const TransaksiService = {
     if (t?.cloud_id) await queueSync('transaksi_logs', 'delete', lid, { cloud_id: t.cloud_id })
   }
 }
+
+// Saldo berjalan per akun kas dari seluruh riwayat transaksi.
+// Baris qty-only (Solar/Upah Galian tanpa nominal) otomatis tidak berpengaruh.
+export function computeKasSaldo(logs) {
+  const saldo = Object.fromEntries(KAS_OPTIONS.map(k => [k, 0]))
+  const valid = k => k && k !== '-'
+  for (const t of logs) {
+    const nominal = Number(t.nominal) || 0
+    if (!nominal) continue
+    if (t.tipe === 'Masuk' && valid(t.ke)) saldo[t.ke] = (saldo[t.ke] || 0) + nominal
+    else if (t.tipe === 'Keluar' && valid(t.dari)) saldo[t.dari] = (saldo[t.dari] || 0) - nominal
+    else if (t.tipe === 'Pindah') {
+      if (valid(t.dari)) saldo[t.dari] = (saldo[t.dari] || 0) - nominal
+      if (valid(t.ke)) saldo[t.ke] = (saldo[t.ke] || 0) + nominal
+    }
+  }
+  return saldo
+}
