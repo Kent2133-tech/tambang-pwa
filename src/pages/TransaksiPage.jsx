@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import dayjs from 'dayjs'
 import { TransaksiService, TRANSAKSI_KATEGORI_MASUK, TRANSAKSI_KATEGORI_KELUAR, KAS_OPTIONS } from '../services/dataServices'
-import { ConfirmModal, useToast, Toast, EmptyState } from '../components/UI'
+import { ConfirmModal, useToast, Toast, EmptyState, PageHeader, ModalShell } from '../components/UI'
 
 const today = () => dayjs().format('YYYY-MM-DD')
 const fmtDate = (d) => dayjs(d).format('DD MMM YYYY')
@@ -83,13 +83,13 @@ export function TransaksiModal({ existing, onClose, onSuccess }) {
   }
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="modal" style={{ maxWidth: 480 }} onClick={e => e.stopPropagation()}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
-          <div style={{ fontFamily: 'Space Grotesk', fontWeight: 700, fontSize: 16 }}>{isEdit ? '✏️ Edit Transaksi' : '💰 Catat Transaksi'}</div>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', fontSize: 22, cursor: 'pointer', color: 'var(--mu)', padding: '0 4px', lineHeight: 1 }}>✕</button>
-        </div>
-
+    <ModalShell title={isEdit ? 'Edit Transaksi' : 'Catat Transaksi'} icon="bi-cash-coin" onClose={onClose} maxWidth={480}
+      footer={<>
+        <button className="btn btn-primary btn-full" onClick={save} disabled={!canSave || saving}>
+          <i className="bi bi-floppy-fill" /> {saving ? 'Menyimpan...' : isEdit ? 'Simpan Perubahan' : 'Simpan Transaksi'}
+        </button>
+        <button className="btn btn-secondary" onClick={onClose}>Batal</button>
+      </>}>
         <div className="form-group">
           <label className="form-label">Tipe *</label>
           <div style={{ display: 'flex', gap: 8 }}>
@@ -167,15 +167,7 @@ export function TransaksiModal({ existing, onClose, onSuccess }) {
           <label className="form-label">Dicatat oleh</label>
           <input className="form-input" value={f.operatorName} onChange={e => s('operatorName', e.target.value)} placeholder="Mandor / nama kamu" />
         </div>
-
-        <div className="modal-footer">
-          <button className="btn btn-primary btn-full" onClick={save} disabled={!canSave || saving} style={{ padding: 12 }}>
-            <i className="bi bi-floppy-fill" /> {saving ? 'Menyimpan...' : isEdit ? 'Simpan Perubahan' : 'Simpan Transaksi'}
-          </button>
-          <button className="btn btn-secondary" onClick={onClose}>Batal</button>
-        </div>
-      </div>
-    </div>
+    </ModalShell>
   )
 }
 
@@ -231,15 +223,8 @@ export default function TransaksiPage() {
     <>
       <div className="page-enter">
         <Toast msg={msg} />
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
-          <div>
-            <div style={{ fontFamily: 'Space Grotesk', fontWeight: 800, fontSize: 18 }}>💰 Transaksi Kas</div>
-            <div style={{ fontSize: 12, color: 'var(--mu)' }}>Catat pemasukan & pengeluaran harian — tersimpan offline, sync saat ada sinyal</div>
-          </div>
-          <button className="btn btn-primary" onClick={() => setModal('new')}>
-            <i className="bi bi-plus-lg" /> Catat Transaksi
-          </button>
-        </div>
+        <PageHeader icon="bi-cash-coin" title="Transaksi Kas" subtitle="Catat pemasukan & pengeluaran harian — tersimpan offline"
+          action={<button className="btn btn-primary btn-sm" onClick={() => setModal('new')}><i className="bi bi-plus-lg" /> Catat</button>} />
 
         <div className="alert alert-info" style={{ marginBottom: 14 }}>
           <i className="bi bi-info-circle-fill" />

@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import dayjs from 'dayjs'
 import db from '../services/db'
 import { UnitService, SvcService, InspService, PhotoService } from '../services/dataServices'
-import { ConfirmModal, PhotoUploader, useToast, Toast, EmptyState } from '../components/UI'
+import { ConfirmModal, PhotoUploader, useToast, Toast, EmptyState, PageHeader, ModalShell, FilterPills, StatusDot } from '../components/UI'
 import { useAuth } from '../hooks/useAuth'
 
 const today = () => dayjs().format('YYYY-MM-DD')
@@ -66,37 +66,33 @@ function AddHoursModal({ unit, onClose, onSuccess }) {
   }
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="modal" style={{ maxWidth: 320, textAlign: 'center' }} onClick={e => e.stopPropagation()}>
-        <Toast msg={msg} />
-        <div style={{ fontSize: 36, marginBottom: 8 }}>⏱</div>
-        <div className="modal-title" style={{ textAlign: 'center' }}>Tambah Jam Operasi</div>
-        <p style={{ fontSize: 12.5, color: 'var(--mu)', marginBottom: 4 }}>{unit.name}</p>
-        <p style={{ fontSize: 11.5, color: 'var(--mu)', marginBottom: 14 }}>
-          Saat ini: <strong style={{ fontFamily: 'Space Grotesk' }}>{numF(unit.totalHours)} jam</strong>
-        </p>
-        <div className="form-group">
-          <label className="form-label">Jam Ditambahkan</label>
-          <input type="number" className="form-input" style={{ textAlign: 'center', fontSize: 22, fontWeight: 700 }}
-            placeholder="0" value={h} onChange={e => setH(e.target.value)} autoFocus inputMode="numeric" />
-        </div>
-        {h > 0 && (
-          <p style={{ textAlign: 'center', fontSize: 12.5, color: 'var(--mu)', marginBottom: 12 }}>
-            Menjadi <strong style={{ color: 'var(--pr)', fontSize: 15, fontFamily: 'Space Grotesk' }}>
-              {numF((unit.totalHours || 0) + (parseFloat(h) || 0))} jam
-            </strong>
-          </p>
-        )}
-        <div className="modal-footer">
-          <button className="btn btn-primary btn-full" onClick={save}><i className="bi bi-check-lg" /> Simpan</button>
-          <button className="btn btn-secondary" onClick={onClose}>Batal</button>
-        </div>
+    <ModalShell title="Tambah Jam Operasi" icon="bi-stopwatch" onClose={onClose} maxWidth={340}
+      footer={<>
+        <button className="btn btn-primary btn-full" onClick={save}><i className="bi bi-check-lg" /> Simpan</button>
+        <button className="btn btn-secondary" onClick={onClose}>Batal</button>
+      </>}>
+      <Toast msg={msg} />
+      <p style={{ fontSize: 12.5, color: 'var(--mu)', marginBottom: 4, textAlign: 'center' }}>{unit.name}</p>
+      <p style={{ fontSize: 11.5, color: 'var(--mu)', marginBottom: 14, textAlign: 'center' }}>
+        Saat ini: <strong style={{ fontFamily: 'Space Grotesk' }}>{numF(unit.totalHours)} jam</strong>
+      </p>
+      <div className="form-group">
+        <label className="form-label">Jam Ditambahkan</label>
+        <input type="number" className="form-input" style={{ textAlign: 'center', fontSize: 22, fontWeight: 700 }}
+          placeholder="0" value={h} onChange={e => setH(e.target.value)} autoFocus inputMode="numeric" />
       </div>
-    </div>
+      {h > 0 && (
+        <p style={{ textAlign: 'center', fontSize: 12.5, color: 'var(--mu)', marginBottom: 12 }}>
+          Menjadi <strong style={{ color: 'var(--pr)', fontSize: 15, fontFamily: 'Space Grotesk' }}>
+            {numF((unit.totalHours || 0) + (parseFloat(h) || 0))} jam
+          </strong>
+        </p>
+      )}
+    </ModalShell>
   )
 }
 
-// ── UNIT MODAL (Udah Diperbaiki Layout & Scroll-nya) ──────────────
+// ── UNIT MODAL ────────────────────────────────────────────────────
 function UnitModal({ existing, unitType, onClose, onSuccess }) {
   const isEdit = !!existing
   const [f, setF] = useState(existing || {
@@ -120,119 +116,114 @@ function UnitModal({ existing, unitType, onClose, onSuccess }) {
   }
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="modal" onClick={e => e.stopPropagation()}>
-        <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:16 }}>
-          <div style={{ fontFamily:'Space Grotesk', fontWeight:700, fontSize:16 }}>{isEdit ? 'Edit Unit' : 'Tambah Unit Baru'}</div>
-          <button onClick={onClose} style={{ background:'none', border:'none', fontSize:22, cursor:'pointer', color:'var(--mu)', padding:'0 4px', lineHeight:1 }}>✕</button>
+    <ModalShell title={isEdit ? 'Edit Unit' : 'Tambah Unit Baru'} icon={f.type === 'vehicle' ? 'bi-truck-front-fill' : 'bi-gear-wide-connected'} onClose={onClose}
+      footer={<>
+        <button className="btn btn-primary btn-full" onClick={save} disabled={!f.name || saving}>
+          <i className="bi bi-check-lg" /> {saving ? 'Menyimpan...' : isEdit ? 'Simpan Perubahan' : 'Tambah Unit'}
+        </button>
+        <button className="btn btn-secondary" onClick={onClose}>Batal</button>
+      </>}>
+
+      {!isEdit && (
+        <div style={{ display: 'flex', gap: 7, marginBottom: 14 }}>
+          {[['vehicle', 'bi-truck-front-fill', 'Kendaraan'], ['machine', 'bi-gear-wide-connected', 'Mesin']].map(([t, ico, l]) => (
+            <button key={t} onClick={() => s('type', t)} style={{
+              flex: 1, padding: '10px', minHeight: 'var(--tap)', borderRadius: 8,
+              border: `2px solid ${f.type === t ? 'var(--pr)' : 'var(--bd)'}`,
+              background: f.type === t ? 'rgba(119,85,55,.07)' : '#fff',
+              fontWeight: 600, fontSize: 12.5, cursor: 'pointer',
+              color: f.type === t ? 'var(--pr)' : 'var(--mu)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+              fontFamily: 'DM Sans, sans-serif',
+            }}><i className={`bi ${ico}`} /> {l}</button>
+          ))}
         </div>
+      )}
 
-        {!isEdit && (
-          <div style={{ display: 'flex', gap: 7, marginBottom: 14 }}>
-            {[['vehicle', '🚛 Kendaraan'], ['machine', '⚙️ Mesin']].map(([t, l]) => (
-              <button key={t} onClick={() => s('type', t)} style={{
-                flex: 1, padding: '9px', borderRadius: 8,
-                border: `2px solid ${f.type === t ? 'var(--pr)' : 'var(--bd)'}`,
-                background: f.type === t ? 'rgba(119,85,55,.07)' : '#fff',
-                fontWeight: 600, fontSize: 12.5, cursor: 'pointer',
-                color: f.type === t ? 'var(--pr)' : 'var(--mu)'
-              }}>{l}</button>
-            ))}
-          </div>
-        )}
-
-        <div className="form-grid-responsive" style={{ display: 'grid', gap: 10 }}>
-          <div className="form-group form-span-2">
-            <label className="form-label">Nama Unit *</label>
-            <input className="form-input" value={f.name} onChange={e => s('name', e.target.value)} placeholder="Excavator Komatsu PC200" />
-          </div>
-          <div className="form-group">
-            <label className="form-label">Kategori</label>
-            <select className="form-input form-select" value={f.category || ''} onChange={e => s('category', e.target.value)}>
-              <option value="">-- Pilih --</option>
-              {cats.map(c => <option key={c}>{c}</option>)}
-            </select>
-          </div>
-          <div className="form-group">
-            <label className="form-label">Kode Unit</label>
-            <input className="form-input" value={f.kodeUnit || ''} onChange={e => s('kodeUnit', e.target.value)} placeholder="EXC-01" />
-          </div>
-          <div className="form-group">
-            <label className="form-label">Status</label>
-            <select className="form-input form-select" value={f.status || 'aktif'} onChange={e => s('status', e.target.value)}>
-              <option value="aktif">Aktif</option>
-              <option value="standby">Standby</option>
-              <option value="maintenance">Maintenance</option>
-              <option value="rusak">Rusak</option>
-            </select>
-          </div>
-          <div className="form-group">
-            <label className="form-label">Lokasi</label>
-            <input className="form-input" value={f.location || ''} onChange={e => s('location', e.target.value)} placeholder="Pit A, Stockpile..." />
-          </div>
-          <div className="form-group">
-            <label className="form-label">Jam Operasi Saat Ini</label>
-            <input type="number" className="form-input" value={f.totalHours || 0} onChange={e => s('totalHours', parseFloat(e.target.value) || 0)} inputMode="numeric" />
-          </div>
-          <div className="form-group">
-            <label className="form-label">Konsumsi Solar (L/jam)</label>
-            <input type="number" className="form-input" value={f.fuelConsumptionPerHour || ''} onChange={e => s('fuelConsumptionPerHour', e.target.value)} inputMode="decimal" />
-          </div>
-          <div className="form-group form-span-2">
-            <label className="form-label">Harga Beli (Rp)</label>
-            <input type="number" className="form-input" value={f.purchasePrice || ''} onChange={e => s('purchasePrice', e.target.value)} inputMode="numeric" />
-          </div>
-          <div className="form-group">
-            <label className="form-label">Tahun Beli</label>
-            <input type="number" className="form-input" value={f.purchaseYear || ''} onChange={e => s('purchaseYear', e.target.value)} inputMode="numeric" />
-          </div>
-          <div className="form-group">
-            <label className="form-label">Umur Ekonomis (th)</label>
-            <input type="number" className="form-input" value={f.economicLifeYears || 8} onChange={e => s('economicLifeYears', e.target.value)} />
-          </div>
+      <div className="form-grid-responsive" style={{ display: 'grid', gap: 10 }}>
+        <div className="form-group form-span-2">
+          <label className="form-label">Nama Unit *</label>
+          <input className="form-input" value={f.name} onChange={e => s('name', e.target.value)} placeholder="Excavator Komatsu PC200" />
         </div>
-
-        {/* Maintenance Intervals */}
-        <div style={{ marginTop: 4, padding: '12px', background: 'rgba(119,85,55,.05)', borderRadius: 8, border: '1px solid var(--bd)', marginBottom: 10 }}>
-          <div style={{ fontSize: 10.5, fontWeight: 700, color: 'var(--pr)', marginBottom: 8, textTransform: 'uppercase', letterSpacing: .5 }}>
-            ⚙️ Interval Maintenance (Jam)
-          </div>
-          <div className="interval-grid-responsive" style={{ display: 'grid', gap: 8 }}>
-            {MT_SCHEDULES.map(m => (
-              <div key={m.t} className="form-group" style={{ marginBottom: 0 }}>
-                <label className="form-label">{m.l}</label>
-                <input type="number" className="form-input" value={f.maintenanceIntervals?.[m.t] || m.interval}
-                  onChange={e => si(m.t, e.target.value)} inputMode="numeric" />
-              </div>
-            ))}
-          </div>
+        <div className="form-group">
+          <label className="form-label">Kategori</label>
+          <select className="form-input form-select" value={f.category || ''} onChange={e => s('category', e.target.value)}>
+            <option value="">-- Pilih --</option>
+            {cats.map(c => <option key={c}>{c}</option>)}
+          </select>
         </div>
-
-        {/* Inspeksi Intervals */}
-        <div style={{ padding: '12px', background: 'rgba(74,144,217,.05)', borderRadius: 8, border: '1px solid rgba(74,144,217,.18)', marginBottom: 10 }}>
-          <div style={{ fontSize: 10.5, fontWeight: 700, color: '#1a5fa8', marginBottom: 8, textTransform: 'uppercase', letterSpacing: .5 }}>
-            🔍 Interval Inspeksi
-          </div>
-          <div className="interval-grid-responsive" style={{ display: 'grid', gap: 10 }}>
-            <div className="form-group" style={{ marginBottom: 0 }}>
-              <label className="form-label">Berbasis Jam (h)</label>
-              <input type="number" className="form-input" value={f.inspectionIntervalHours || 1000} onChange={e => s('inspectionIntervalHours', e.target.value)} inputMode="numeric" />
-            </div>
-            <div className="form-group" style={{ marginBottom: 0 }}>
-              <label className="form-label">Kalender (hari)</label>
-              <input type="number" className="form-input" value={f.inspectionIntervalDays || 30} onChange={e => s('inspectionIntervalDays', e.target.value)} inputMode="numeric" />
-            </div>
-          </div>
+        <div className="form-group">
+          <label className="form-label">Kode Unit</label>
+          <input className="form-input" value={f.kodeUnit || ''} onChange={e => s('kodeUnit', e.target.value)} placeholder="EXC-01" />
         </div>
-
-        <div className="modal-footer">
-          <button className="btn btn-primary btn-full" onClick={save} disabled={!f.name || saving} style={{ padding: 11 }}>
-            <i className="bi bi-check-lg" /> {saving ? 'Menyimpan...' : isEdit ? 'Simpan Perubahan' : 'Tambah Unit'}
-          </button>
-          <button className="btn btn-secondary" onClick={onClose}>Batal</button>
+        <div className="form-group">
+          <label className="form-label">Status</label>
+          <select className="form-input form-select" value={f.status || 'aktif'} onChange={e => s('status', e.target.value)}>
+            <option value="aktif">Aktif</option>
+            <option value="standby">Standby</option>
+            <option value="maintenance">Maintenance</option>
+            <option value="rusak">Rusak</option>
+          </select>
+        </div>
+        <div className="form-group">
+          <label className="form-label">Lokasi</label>
+          <input className="form-input" value={f.location || ''} onChange={e => s('location', e.target.value)} placeholder="Pit A, Stockpile..." />
+        </div>
+        <div className="form-group">
+          <label className="form-label">Jam Operasi Saat Ini</label>
+          <input type="number" className="form-input" value={f.totalHours || 0} onChange={e => s('totalHours', parseFloat(e.target.value) || 0)} inputMode="numeric" />
+        </div>
+        <div className="form-group">
+          <label className="form-label">Konsumsi Solar (L/jam)</label>
+          <input type="number" className="form-input" value={f.fuelConsumptionPerHour || ''} onChange={e => s('fuelConsumptionPerHour', e.target.value)} inputMode="decimal" />
+        </div>
+        <div className="form-group form-span-2">
+          <label className="form-label">Harga Beli (Rp)</label>
+          <input type="number" className="form-input" value={f.purchasePrice || ''} onChange={e => s('purchasePrice', e.target.value)} inputMode="numeric" />
+        </div>
+        <div className="form-group">
+          <label className="form-label">Tahun Beli</label>
+          <input type="number" className="form-input" value={f.purchaseYear || ''} onChange={e => s('purchaseYear', e.target.value)} inputMode="numeric" />
+        </div>
+        <div className="form-group">
+          <label className="form-label">Umur Ekonomis (th)</label>
+          <input type="number" className="form-input" value={f.economicLifeYears || 8} onChange={e => s('economicLifeYears', e.target.value)} />
         </div>
       </div>
-    </div>
+
+      {/* Maintenance Intervals */}
+      <div style={{ marginTop: 4, padding: '12px', background: 'rgba(119,85,55,.05)', borderRadius: 8, border: '1px solid var(--bd)', marginBottom: 10 }}>
+        <div style={{ fontSize: 10.5, fontWeight: 700, color: 'var(--pr)', marginBottom: 8, textTransform: 'uppercase', letterSpacing: .5 }}>
+          <i className="bi bi-gear-fill" /> Interval Maintenance (Jam)
+        </div>
+        <div className="interval-grid-responsive" style={{ display: 'grid', gap: 8 }}>
+          {MT_SCHEDULES.map(m => (
+            <div key={m.t} className="form-group" style={{ marginBottom: 0 }}>
+              <label className="form-label">{m.l}</label>
+              <input type="number" className="form-input" value={f.maintenanceIntervals?.[m.t] || m.interval}
+                onChange={e => si(m.t, e.target.value)} inputMode="numeric" />
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Inspeksi Intervals */}
+      <div style={{ padding: '12px', background: 'rgba(74,144,217,.05)', borderRadius: 8, border: '1px solid rgba(74,144,217,.18)', marginBottom: 10 }}>
+        <div style={{ fontSize: 10.5, fontWeight: 700, color: '#1a5fa8', marginBottom: 8, textTransform: 'uppercase', letterSpacing: .5 }}>
+          <i className="bi bi-search" /> Interval Inspeksi
+        </div>
+        <div className="interval-grid-responsive" style={{ display: 'grid', gap: 10 }}>
+          <div className="form-group" style={{ marginBottom: 0 }}>
+            <label className="form-label">Berbasis Jam (h)</label>
+            <input type="number" className="form-input" value={f.inspectionIntervalHours || 1000} onChange={e => s('inspectionIntervalHours', e.target.value)} inputMode="numeric" />
+          </div>
+          <div className="form-group" style={{ marginBottom: 0 }}>
+            <label className="form-label">Kalender (hari)</label>
+            <input type="number" className="form-input" value={f.inspectionIntervalDays || 30} onChange={e => s('inspectionIntervalDays', e.target.value)} inputMode="numeric" />
+          </div>
+        </div>
+      </div>
+    </ModalShell>
   )
 }
 
@@ -251,34 +242,30 @@ function QuickServiceModal({ unit, onClose, onSuccess }) {
   }
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="modal" onClick={e => e.stopPropagation()}>
-        <div className="modal-title">🔧 Service — {unit?.name}</div>
-        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 10 }}>
-          {MT_SCHEDULES.map(m => (
-            <button key={m.t} onClick={() => s('maintenanceType', m.t)} style={{
-              padding: '5px 10px', borderRadius: 7, fontSize: 11, fontWeight: 600, cursor: 'pointer',
-              border: `2px solid ${f.maintenanceType === m.t ? m.c : 'var(--bd)'}`,
-              background: f.maintenanceType === m.t ? m.c + '22' : 'transparent',
-              color: f.maintenanceType === m.t ? m.c : 'var(--mu)'
-            }}>{m.l}</button>
-          ))}
-        </div>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-          <div className="form-group"><label className="form-label">Tanggal</label><input type="date" className="form-input" value={f.date} onChange={e => s('date', e.target.value)} /></div>
-          <div className="form-group"><label className="form-label">Jam Meter</label><input type="number" className="form-input" value={f.hourAtService} onChange={e => s('hourAtService', e.target.value)} inputMode="numeric" /></div>
-          <div className="form-group"><label className="form-label">Biaya (Rp)</label><input type="number" className="form-input" value={f.cost} onChange={e => s('cost', e.target.value)} inputMode="numeric" /></div>
-          <div className="form-group"><label className="form-label">Downtime (jam)</label><input type="number" className="form-input" value={f.downtimeHours} onChange={e => s('downtimeHours', e.target.value)} inputMode="numeric" /></div>
-        </div>
-        <div className="form-group"><label className="form-label">Spare Part</label><input className="form-input" value={f.sparePartsUsed} onChange={e => s('sparePartsUsed', e.target.value)} placeholder="Filter oli, fan belt..." /></div>
-        <div className="form-group"><label className="form-label">Catatan</label><textarea className="form-input" value={f.note} onChange={e => s('note', e.target.value)} /></div>
-        <div className="form-group"><label className="form-label">📷 Foto</label><PhotoUploader photos={photos} setPhotos={setPhotos} /></div>
-        <div className="modal-footer">
-          <button className="btn btn-primary btn-full" onClick={save}><i className="bi bi-floppy-fill" /> Simpan</button>
-          <button className="btn btn-secondary" onClick={onClose}>Batal</button>
-        </div>
+    <ModalShell title={`Service — ${unit?.name}`} icon="bi-tools" onClose={onClose}
+      footer={<>
+        <button className="btn btn-primary btn-full" onClick={save}><i className="bi bi-floppy-fill" /> Simpan</button>
+        <button className="btn btn-secondary" onClick={onClose}>Batal</button>
+      </>}>
+      <div className="mt-chips" style={{ marginBottom: 10 }}>
+        {MT_SCHEDULES.map(m => (
+          <button key={m.t} className="mt-chip" onClick={() => s('maintenanceType', m.t)} style={{
+            borderColor: f.maintenanceType === m.t ? m.c : 'var(--bd)',
+            background: f.maintenanceType === m.t ? m.c + '22' : 'transparent',
+            color: f.maintenanceType === m.t ? m.c : 'var(--mu)',
+          }}>{m.l}</button>
+        ))}
       </div>
-    </div>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+        <div className="form-group"><label className="form-label">Tanggal</label><input type="date" className="form-input" value={f.date} onChange={e => s('date', e.target.value)} /></div>
+        <div className="form-group"><label className="form-label">Jam Meter</label><input type="number" className="form-input" value={f.hourAtService} onChange={e => s('hourAtService', e.target.value)} inputMode="numeric" /></div>
+        <div className="form-group"><label className="form-label">Biaya (Rp)</label><input type="number" className="form-input" value={f.cost} onChange={e => s('cost', e.target.value)} inputMode="numeric" /></div>
+        <div className="form-group"><label className="form-label">Downtime (jam)</label><input type="number" className="form-input" value={f.downtimeHours} onChange={e => s('downtimeHours', e.target.value)} inputMode="numeric" /></div>
+      </div>
+      <div className="form-group"><label className="form-label">Spare Part</label><input className="form-input" value={f.sparePartsUsed} onChange={e => s('sparePartsUsed', e.target.value)} placeholder="Filter oli, fan belt..." /></div>
+      <div className="form-group"><label className="form-label">Catatan</label><textarea className="form-input" value={f.note} onChange={e => s('note', e.target.value)} /></div>
+      <div className="form-group"><label className="form-label"><i className="bi bi-camera-fill" /> Foto</label><PhotoUploader photos={photos} setPhotos={setPhotos} /></div>
+    </ModalShell>
   )
 }
 
@@ -292,6 +279,8 @@ function QuickInspModal({ unit, onClose, onSuccess }) {
   const [photos, setPhotos] = useState([])
   const overall = Object.values(results).includes('bad') ? 'rusak' : Object.values(results).includes('warn') ? 'perlu-perbaikan' : 'normal'
   const rc = { normal: 'var(--ok)', 'perlu-perbaikan': 'var(--wn)', rusak: 'var(--er)' }
+  const overallLabel = { normal: 'Normal', 'perlu-perbaikan': 'Perlu Perbaikan', rusak: 'Rusak / Kritis' }
+  const overallDot = { normal: 'ok', 'perlu-perbaikan': 'warn', rusak: 'er' }
   const s = (k, v) => setF(p => ({ ...p, [k]: v }))
 
   const save = async () => {
@@ -301,38 +290,33 @@ function QuickInspModal({ unit, onClose, onSuccess }) {
   }
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="modal" onClick={e => e.stopPropagation()}>
-        <div className="modal-title">📋 Inspeksi — {unit?.name}</div>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 12 }}>
-          <div className="form-group" style={{ marginBottom: 0 }}><label className="form-label">Tanggal</label><input type="date" className="form-input" value={f.date} onChange={e => s('date', e.target.value)} /></div>
-          <div className="form-group" style={{ marginBottom: 0 }}><label className="form-label">Jam Meter</label><input type="number" className="form-input" value={f.hourAtInspection} onChange={e => s('hourAtInspection', e.target.value)} inputMode="numeric" /></div>
-        </div>
-        <div style={{ border: '1px solid var(--bd)', borderRadius: 8, overflow: 'hidden', marginBottom: 12 }}>
-          {CHECKLIST.map((item, i) => (
-            <div key={i} style={{ display: 'flex', alignItems: 'center', padding: '8px 12px', borderBottom: i < CHECKLIST.length - 1 ? '1px solid var(--bd)' : 'none', gap: 10 }}>
-              <span style={{ flex: 1, fontSize: 12.5, fontWeight: 500 }}>{item}</span>
-              <div style={{ display: 'flex', gap: 4 }}>
-                {[['ok', '✓', 'chk-ok'], ['warn', '⚠', 'chk-warn'], ['bad', '✗', 'chk-bad']].map(([v, l, cls]) => (
-                  <button key={v} className={`chk-btn ${cls} ${results[i] === v ? 'sel' : ''}`} onClick={() => setResults(r => ({ ...r, [i]: v }))}>{l}</button>
-                ))}
-              </div>
-            </div>
-          ))}
-        </div>
-        <div style={{ background: rc[overall] + '18', border: `1.5px solid ${rc[overall]}40`, borderRadius: 8, padding: '8px 12px', marginBottom: 12 }}>
-          <span style={{ fontSize: 13, fontWeight: 700, color: rc[overall] }}>
-            {overall === 'normal' ? '🟢 Normal' : overall === 'perlu-perbaikan' ? '🟡 Perlu Perbaikan' : '🔴 Rusak/Kritis'}
-          </span>
-        </div>
-        <div className="form-group"><label className="form-label">Catatan</label><textarea className="form-input" value={f.note} onChange={e => s('note', e.target.value)} placeholder="Temuan, rekomendasi..." /></div>
-        <div className="form-group"><label className="form-label">📷 Foto Kondisi</label><PhotoUploader photos={photos} setPhotos={setPhotos} /></div>
-        <div className="modal-footer">
-          <button className="btn btn-primary btn-full" onClick={save}><i className="bi bi-clipboard2-check" /> Simpan Inspeksi</button>
-          <button className="btn btn-secondary" onClick={onClose}>Batal</button>
-        </div>
+    <ModalShell title={`Inspeksi — ${unit?.name}`} icon="bi-clipboard2-check-fill" onClose={onClose}
+      footer={<>
+        <button className="btn btn-primary btn-full" onClick={save}><i className="bi bi-clipboard2-check" /> Simpan Inspeksi</button>
+        <button className="btn btn-secondary" onClick={onClose}>Batal</button>
+      </>}>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 12 }}>
+        <div className="form-group" style={{ marginBottom: 0 }}><label className="form-label">Tanggal</label><input type="date" className="form-input" value={f.date} onChange={e => s('date', e.target.value)} /></div>
+        <div className="form-group" style={{ marginBottom: 0 }}><label className="form-label">Jam Meter</label><input type="number" className="form-input" value={f.hourAtInspection} onChange={e => s('hourAtInspection', e.target.value)} inputMode="numeric" /></div>
       </div>
-    </div>
+      <div style={{ border: '1px solid var(--bd)', borderRadius: 8, overflow: 'hidden', marginBottom: 12 }}>
+        {CHECKLIST.map((item, i) => (
+          <div key={i} className="check-row" style={{ padding: '8px 12px' }}>
+            <span className="check-label" style={{ fontSize: 12.5 }}>{item}</span>
+            <div className="check-btns">
+              {[['ok', '✓', 'chk-ok'], ['warn', '⚠', 'chk-warn'], ['bad', '✗', 'chk-bad']].map(([v, l, cls]) => (
+                <button key={v} className={`chk-btn ${cls} ${results[i] === v ? 'sel' : ''}`} onClick={() => setResults(r => ({ ...r, [i]: v }))}>{l}</button>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+      <div style={{ background: rc[overall] + '18', border: `1.5px solid ${rc[overall]}40`, borderRadius: 8, padding: '10px 12px', marginBottom: 12 }}>
+        <StatusDot status={overallDot[overall]} label={overallLabel[overall]} />
+      </div>
+      <div className="form-group"><label className="form-label">Catatan</label><textarea className="form-input" value={f.note} onChange={e => s('note', e.target.value)} placeholder="Temuan, rekomendasi..." /></div>
+      <div className="form-group"><label className="form-label"><i className="bi bi-camera-fill" /> Foto Kondisi</label><PhotoUploader photos={photos} setPhotos={setPhotos} /></div>
+    </ModalShell>
   )
 }
 
@@ -350,9 +334,11 @@ function UnitRow({ unit, onAddHours, onService, onInspeksi, onEdit, onDelete }) 
   }
   const cfg = scfg[os] || scfg.sehat
   const statusColors = { aktif: '#4CAF82', rusak: 'var(--er)', maintenance: 'var(--wn)', standby: 'var(--in)' }
+  const stDot = { overdue: 'er', 'due-soon': 'warn', ok: 'ok' }
 
   return (
-    <div style={{ background: '#fff', borderRadius: 'var(--r)', boxShadow: 'var(--sh)', marginBottom: 8, border: `1.5px solid ${os === 'overdue' ? 'rgba(224,82,82,.25)' : os === 'hampir' ? 'rgba(245,166,35,.2)' : 'var(--bd)'}`, overflow: 'hidden' }}>
+    <div className={`card ${os === 'overdue' ? 'unit-overdue' : os === 'hampir' ? 'unit-hampir' : ''}`}
+      style={{ padding: 0, marginBottom: 8, border: '1.5px solid var(--bd)', overflow: 'hidden' }}>
       {/* Header row */}
       <div onClick={() => setOpen(o => !o)} style={{ display: 'flex', alignItems: 'center', padding: '12px 14px', cursor: 'pointer', gap: 10 }}>
         <div style={{ width: 36, height: 36, borderRadius: 9, background: cfg.bg, color: cfg.clr, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
@@ -363,11 +349,11 @@ function UnitRow({ unit, onAddHours, onService, onInspeksi, onEdit, onDelete }) 
           <div style={{ fontSize: 11, color: 'var(--mu)', display: 'flex', gap: 6, alignItems: 'center', marginTop: 2, flexWrap: 'wrap' }}>
             {unit.category && <span>{unit.category}</span>}
             {unit.kodeUnit && <span style={{ background: 'rgba(119,85,55,.09)', color: 'var(--pr)', padding: '1px 5px', borderRadius: 4, fontSize: 9.5, fontWeight: 700 }}>{unit.kodeUnit}</span>}
-            {unit.location && <span>📍 {unit.location}</span>}
+            {unit.location && <span><i className="bi bi-geo-alt-fill" style={{ fontSize: 9 }} /> {unit.location}</span>}
             <span style={{ background: statusColors[unit.status] + '18', color: statusColors[unit.status], padding: '1px 6px', borderRadius: 10, fontSize: 9.5, fontWeight: 700 }}>
               {unit.status || 'Aktif'}
             </span>
-            {!unit.synced && <span style={{ fontSize: 9.5, color: 'var(--wn)', fontWeight: 600 }}>⏳ pending</span>}
+            {!unit.synced && <span style={{ fontSize: 9.5, color: 'var(--wn)', fontWeight: 600 }}><i className="bi bi-hourglass-split" /> pending</span>}
           </div>
         </div>
         <div style={{ textAlign: 'right', flexShrink: 0, marginRight: 6 }}>
@@ -387,28 +373,24 @@ function UnitRow({ unit, onAddHours, onService, onInspeksi, onEdit, onDelete }) 
             <div style={{ fontSize: 10.5, fontWeight: 700, color: 'var(--mu)', marginBottom: 8, textTransform: 'uppercase', letterSpacing: .6 }}>Jadwal Maintenance</div>
             {ms.map(m => (
               <div key={m.t} style={{ marginBottom: 8 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11.5, marginBottom: 3 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11.5, marginBottom: 3, gap: 8, flexWrap: 'wrap' }}>
                   <span style={{ fontWeight: 600 }}>{m.l} <span style={{ color: 'var(--mu)', fontWeight: 400 }}>({numF(m.interval)}h)</span></span>
-                  <span style={{ fontWeight: 700, color: m.st === 'overdue' ? 'var(--er)' : m.st === 'due-soon' ? 'var(--wn)' : 'var(--ok)', fontSize: 11 }}>
-                    {m.st === 'overdue' ? '🔴 OVERDUE' : m.st === 'due-soon' ? '🟡 Segera' : '🟢 OK'} — {Math.abs(m.diff)}h {m.diff < 0 ? 'lewat' : 'lagi'}
-                  </span>
+                  <StatusDot status={stDot[m.st]} label={`${m.st === 'overdue' ? 'Overdue' : m.st === 'due-soon' ? 'Segera' : 'OK'} — ${Math.abs(m.diff)}h ${m.diff < 0 ? 'lewat' : 'lagi'}`} />
                 </div>
                 <div style={{ height: 5, background: 'var(--bd)', borderRadius: 3 }}>
-                  <div style={{ height: '100%', width: `${m.pct}%`, background: m.pct > 85 ? 'var(--er)' : m.pct > 70 ? 'var(--wn)' : 'var(--ok)', borderRadius: 3, transition: 'width .3s' }} />
+                  <div className="prog-bar-animated" style={{ height: '100%', width: `${m.pct}%`, background: m.pct > 85 ? 'var(--er)' : m.pct > 70 ? 'var(--wn)' : 'var(--ok)', borderRadius: 3 }} />
                 </div>
               </div>
             ))}
           </div>
 
           {/* Inspeksi status */}
-          <div style={{ marginBottom: 10, padding: '7px 10px', background: 'rgba(74,144,217,.06)', borderRadius: 7, border: '1px solid rgba(74,144,217,.14)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div style={{ marginBottom: 10, padding: '7px 10px', background: 'rgba(74,144,217,.06)', borderRadius: 7, border: '1px solid rgba(74,144,217,.14)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 6 }}>
             <span style={{ fontSize: 11.5, fontWeight: 600, color: '#1a5fa8' }}>
               <i className="bi bi-clipboard2-check" style={{ marginRight: 5 }} />Inspeksi:
             </span>
             <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-              <span style={{ fontSize: 11.5, fontWeight: 700, color: is === 'overdue' ? 'var(--er)' : is === 'due-soon' ? 'var(--wn)' : 'var(--ok)' }}>
-                {is === 'overdue' ? '🔴 Terlambat' : is === 'due-soon' ? '🟡 Segera' : '🟢 OK'}
-              </span>
+              <StatusDot status={stDot[is]} label={is === 'overdue' ? 'Terlambat' : is === 'due-soon' ? 'Segera' : 'OK'} />
               {unit.lastInspectionDate && <span style={{ fontSize: 10, color: 'var(--mu)' }}>Terakhir: {unit.lastInspectionDate}</span>}
             </div>
           </div>
@@ -427,7 +409,7 @@ function UnitRow({ unit, onAddHours, onService, onInspeksi, onEdit, onDelete }) 
             <button className="btn btn-secondary btn-sm" onClick={() => onEdit(unit)}>
               <i className="bi bi-pencil" /> Edit
             </button>
-            <button className="btn btn-danger btn-sm" onClick={() => onDelete(unit)}>
+            <button className="btn btn-danger btn-sm" onClick={() => onDelete(unit)} aria-label="Hapus">
               <i className="bi bi-trash3" />
             </button>
           </div>
@@ -457,8 +439,8 @@ function UnitListPage({ unitType }) {
   useEffect(() => { load() }, [load])
 
   const FILTERS = [
-    ['all', 'Semua'], ['sehat', 'Sehat'], ['hampir', 'Hampir'],
-    ['overdue', 'Overdue'], ['rusak', 'Rusak'], ['maintenance', 'Maintenance'],
+    { value: 'all', label: 'Semua' }, { value: 'sehat', label: 'Sehat' }, { value: 'hampir', label: 'Hampir' },
+    { value: 'overdue', label: 'Overdue' }, { value: 'rusak', label: 'Rusak' }, { value: 'maintenance', label: 'Maintenance' },
   ]
 
   const filtered = units.filter(u => {
@@ -478,13 +460,16 @@ function UnitListPage({ unitType }) {
       <Toast msg={msg} />
 
       <div className="page-enter">
+        <PageHeader icon={icon} title={label} subtitle={`${units.length} unit terdaftar`}
+          action={<button className="btn btn-primary btn-sm" onClick={() => setModal('add', true)}><i className="bi bi-plus-lg" /> Tambah</button>} />
+
         {/* Stats */}
-        <div className="stat-grid stagger" style={{ gridTemplateColumns: 'repeat(4,1fr)', marginBottom: 14 }}>
+        <div className="stat-grid stagger">
           {[
             { l: 'Total', v: units.length, c: 'var(--pr)', bg: 'rgba(119,85,55,.08)' },
-            { l: '🟢 Sehat', v: counts.sehat, c: 'var(--ok)', bg: 'rgba(76,175,130,.07)' },
-            { l: '🟡 Hampir', v: counts.hampir, c: 'var(--wn)', bg: 'rgba(245,166,35,.07)' },
-            { l: '🔴 Overdue', v: counts.overdue, c: 'var(--er)', bg: 'rgba(224,82,82,.07)' },
+            { l: 'Sehat', v: counts.sehat, c: 'var(--ok)', bg: 'rgba(76,175,130,.07)' },
+            { l: 'Hampir', v: counts.hampir, c: 'var(--wn)', bg: 'rgba(245,166,35,.07)' },
+            { l: 'Overdue', v: counts.overdue, c: 'var(--er)', bg: 'rgba(224,82,82,.07)' },
           ].map(x => (
             <div key={x.l} className="stat-card" style={{ background: x.bg }}>
               <div className="stat-val" style={{ color: x.c }}>{x.v}</div>
@@ -493,22 +478,8 @@ function UnitListPage({ unitType }) {
           ))}
         </div>
 
-        {/* Filter + Tambah */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, flexWrap: 'wrap', gap: 8 }}>
-          <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
-            {FILTERS.map(([k, v]) => (
-              <button key={k} onClick={() => setFilter(k)} style={{
-                padding: '5px 12px', borderRadius: 20, fontSize: 12, fontWeight: 600, cursor: 'pointer',
-                border: `1.5px solid ${filter === k ? 'var(--pr)' : 'var(--bd)'}`,
-                background: filter === k ? 'var(--pr)' : '#fff',
-                color: filter === k ? '#fff' : 'var(--mu)',
-              }}>{v}</button>
-            ))}
-          </div>
-          <button className="btn btn-primary btn-sm" onClick={() => setModal('add', true)}>
-            <i className="bi bi-plus-lg" /> Tambah {label}
-          </button>
-        </div>
+        {/* Filter */}
+        <FilterPills options={FILTERS} value={filter} onChange={setFilter} />
 
         {/* Alerts */}
         {counts.overdue > 0 && <div className="alert alert-error"><i className="bi bi-exclamation-octagon-fill" />{counts.overdue} unit melewati batas maintenance!</div>}

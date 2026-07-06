@@ -3,7 +3,7 @@ import dayjs from 'dayjs'
 import { UnitService, OperatorService } from '../services/dataServices'
 import { pullFromCloud } from '../services/dataServices'
 import { exportRingkasanBulanan } from '../services/exportService'
-import { ConfirmModal, useToast, Toast, SectionHeader, EmptyState } from '../components/UI'
+import { ConfirmModal, useToast, Toast, SectionHeader, EmptyState, PageHeader, ModalShell } from '../components/UI'
 import { useAuth } from '../hooks/useAuth'
 
 // ── UNIT MODAL ────────────────────────────────────────────────────
@@ -148,14 +148,14 @@ export default function SettingsPage() {
   return (
     <div className="page-enter">
       <Toast msg={msg} />
-      <div style={{ fontFamily: 'Space Grotesk', fontWeight: 800, fontSize: 18, marginBottom: 16 }}>⚙️ Pengaturan</div>
+      <PageHeader icon="bi-gear-fill" title="Pengaturan" subtitle="Export & preferensi aplikasi" />
 
       {/* EXPORT EXCEL */}
       <div className="card">
-        <div className="card-header"><span className="card-title">📊 Export Excel</span></div>
+        <div className="card-header"><span className="card-title"><i className="bi bi-file-earmark-excel-fill" /> Export Excel</span></div>
         <p style={{ fontSize: 12, color: 'var(--mu)', marginBottom: 12 }}>Download ringkasan bulanan (service, solar, stok) ke Excel.</p>
-        <div style={{ display: 'flex', gap: 10, alignItems: 'flex-end' }}>
-          <div className="form-group" style={{ flex: 1, marginBottom: 0 }}>
+        <div style={{ display: 'flex', gap: 10, alignItems: 'flex-end', flexWrap: 'wrap' }}>
+          <div className="form-group" style={{ flex: 1, minWidth: 150, marginBottom: 0 }}>
             <label className="form-label">Bulan</label>
             <input type="month" className="form-input" value={exportMonth} onChange={e => setExportMonth(e.target.value)} />
           </div>
@@ -168,7 +168,7 @@ export default function SettingsPage() {
       {/* SYNC CLOUD */}
       {isOwner && (
         <div className="card">
-          <div className="card-header"><span className="card-title">☁️ Sync dari Cloud</span></div>
+          <div className="card-header"><span className="card-title"><i className="bi bi-cloud-download" /> Sync dari Cloud</span></div>
           <p style={{ fontSize: 12, color: 'var(--mu)', marginBottom: 12 }}>Tarik semua data dari Supabase ke device ini. Gunakan saat ganti HP atau install ulang.</p>
           {syncLog && <div className="alert alert-info" style={{ marginBottom: 10 }}><i className="bi bi-arrow-repeat" /> {syncLog}</div>}
           <button className="btn btn-secondary btn-full" onClick={handleSync} disabled={syncing}>

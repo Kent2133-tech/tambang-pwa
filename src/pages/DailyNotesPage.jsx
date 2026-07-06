@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import dayjs from 'dayjs'
 import { DailyNoteService } from '../services/dataServices'
-import { ConfirmModal, useToast, Toast } from '../components/UI'
+import { ConfirmModal, useToast, Toast, PageHeader, ModalShell } from '../components/UI'
 
 const today = () => dayjs().format('YYYY-MM-DD')
 const fmtDate = (d) => dayjs(d).format('DD MMM YYYY')
@@ -26,17 +26,22 @@ function NoteModal({ existing, onClose, onSuccess }) {
   }
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="modal" style={{ maxWidth: 520, paddingBottom: 32 }} onClick={e => e.stopPropagation()}>
-        <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:16 }}>
-          <div style={{ fontFamily:'Space Grotesk', fontWeight:700, fontSize:16 }}>{isEdit ? '✏️ Edit Catatan' : '📝 Catatan Harian Baru'}</div>
-          <button onClick={onClose} style={{ background:'none', border:'none', fontSize:22, cursor:'pointer', color:'var(--mu)', padding:'0 4px', lineHeight:1 }}>✕</button>
-        </div>
-
+    <ModalShell title={isEdit ? 'Edit Catatan' : 'Catatan Harian Baru'} icon={isEdit ? 'bi-pencil-square' : 'bi-journal-plus'} onClose={onClose} maxWidth={520}
+      footer={<>
+        <button
+          className="btn btn-primary btn-full"
+          onClick={save}
+          disabled={!content.trim() || saving}
+        >
+          <i className="bi bi-floppy-fill" />
+          {saving ? 'Menyimpan...' : isEdit ? 'Simpan Perubahan' : 'Simpan Catatan'}
+        </button>
+        <button className="btn btn-secondary" onClick={onClose}>Batal</button>
+      </>}>
         {/* Tanggal — user input, TIDAK berubah saat sync */}
         <div className="form-group">
           <label className="form-label">
-            📅 Tanggal Kejadian
+            Tanggal Kejadian
             <span style={{ fontSize: 10, color: 'var(--ok)', fontWeight: 400, marginLeft: 6 }}>
               ✓ Tanggal ini tidak akan berubah walau sinyal baru ada besok
             </span>
@@ -63,7 +68,7 @@ function NoteModal({ existing, onClose, onSuccess }) {
         {/* Content — bebas, panjang */}
         <div className="form-group">
           <label className="form-label">
-            📋 Isi Catatan
+            Isi Catatan
             <span style={{ fontSize: 10, color: 'var(--mu)', fontWeight: 400, marginLeft: 6 }}>
               Tulis semua — pemasukan, pengeluaran, kejadian hari ini
             </span>
@@ -86,21 +91,7 @@ function NoteModal({ existing, onClose, onSuccess }) {
             {content.length} karakter · {content.split('\n').filter(l => l.trim()).length} baris
           </div>
         </div>
-
-        <div className="modal-footer">
-          <button
-            className="btn btn-primary btn-full"
-            onClick={save}
-            disabled={!content.trim() || saving}
-            style={{ padding: 12 }}
-          >
-            <i className="bi bi-floppy-fill" />
-            {saving ? 'Menyimpan...' : isEdit ? 'Simpan Perubahan' : 'Simpan Catatan'}
-          </button>
-          <button className="btn btn-secondary" onClick={onClose}>Batal</button>
-        </div>
-      </div>
-    </div>
+    </ModalShell>
   )
 }
 
@@ -246,15 +237,8 @@ export default function DailyNotesPage() {
         <Toast msg={msg} />
 
         {/* Header */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
-          <div>
-            <div style={{ fontFamily: 'Space Grotesk', fontWeight: 800, fontSize: 18 }}>📒 Catatan Harian</div>
-            <div style={{ fontSize: 12, color: 'var(--mu)' }}>Laporan mandor — tersimpan offline, sync saat ada sinyal</div>
-          </div>
-          <button className="btn btn-primary" onClick={() => setModal('new')}>
-            <i className="bi bi-plus-lg" /> Catatan Baru
-          </button>
-        </div>
+        <PageHeader icon="bi-journal-text" title="Catatan Harian" subtitle="Laporan mandor — tersimpan offline, sync saat ada sinyal"
+          action={<button className="btn btn-primary btn-sm" onClick={() => setModal('new')}><i className="bi bi-plus-lg" /> Catatan Baru</button>} />
 
         {/* Info banner */}
         <div className="alert alert-info" style={{ marginBottom: 14 }}>
@@ -300,7 +284,7 @@ export default function DailyNotesPage() {
         {/* Notes grouped by month */}
         {Object.keys(grouped).length === 0 ? (
           <div style={{ textAlign: 'center', padding: '60px 20px', color: 'var(--mu)' }}>
-            <div style={{ fontSize: 48, marginBottom: 12 }}>📒</div>
+            <i className="bi bi-journal-text" style={{ fontSize: 44, opacity: .4, display: 'block', marginBottom: 12 }} />
             <div style={{ fontFamily: 'Space Grotesk', fontWeight: 700, fontSize: 16, marginBottom: 8 }}>
               Belum ada catatan harian
             </div>

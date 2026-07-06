@@ -7,13 +7,12 @@ import db from '../services/db'
 import { UnitService, SvcService, SolarService, InspService, StockService, CostService, TransaksiService } from '../services/dataServices'
 import { pullFromCloud, processSyncQueue } from '../services/dataServices'
 import { exportRingkasanBulanan, exportServiceLog, exportSolarLog, exportInspeksiLog, exportLaporanPDF, exportTransaksiExcel, exportTransaksiCSV } from '../services/exportService'
-import { SectionHeader, EmptyState, useToast, Toast, ConfirmModal } from '../components/UI'
+import { SectionHeader, EmptyState, useToast, Toast, ConfirmModal, PageHeader, ModalShell, DataList, StatusDot, CHART_COLORS } from '../components/UI'
 import { useSync } from '../hooks/useSync'
 
 const rp = n => `Rp ${Math.round(n||0).toLocaleString('id-ID')}`
 const num = n => (n||0).toLocaleString('id-ID')
 const today = () => dayjs().format('YYYY-MM-DD')
-const COLORS = ['#775537','#F5A623','#C0DDDA','#4CAF82','#E05252','#4A90D9']
 
 const OWNER_TABS = [
   { id:'dashboard', icon:'bi-speedometer2', label:'Dashboard',       section:'OVERVIEW' },
@@ -61,7 +60,8 @@ function OwDash() {
   }, [])
   return (
     <div className="page-enter">
-      <div className="stat-grid stagger" style={{ gridTemplateColumns:'repeat(2,1fr)' }}>
+      <PageHeader icon="bi-speedometer2" title="Dashboard Owner" subtitle={dayjs().format('DD MMMM YYYY')} />
+      <div className="stat-grid stagger">
         {[
           { c:'var(--er)', l:'Biaya Bulan Ini', v:rp(d.mCost) },
           { c:'var(--pr)', l:'Biaya Tahun Ini', v:rp(d.yCost) },
@@ -75,20 +75,20 @@ function OwDash() {
         ))}
       </div>
       <div className="card">
-        <div className="card-header"><span className="card-title">📈 Tren Biaya 6 Bulan</span></div>
+        <div className="card-header"><span className="card-title"><i className="bi bi-graph-up" /> Tren Biaya 6 Bulan</span></div>
         {d.trend.some(t=>t.total>0) ? (
           <ResponsiveContainer width="100%" height={180}>
             <BarChart data={d.trend}>
               <XAxis dataKey="label" tick={{fontSize:10}}/>
               <YAxis tick={{fontSize:10}} tickFormatter={v=>`${(v/1e6).toFixed(1)}jt`}/>
               <Tooltip formatter={v=>rp(v)} contentStyle={{fontSize:11,borderRadius:8}}/>
-              <Bar dataKey="total" name="Total" fill="var(--pr)" radius={[4,4,0,0]}/>
+              <Bar dataKey="total" name="Total" fill={CHART_COLORS[0]} radius={[4,4,0,0]}/>
             </BarChart>
           </ResponsiveContainer>
         ) : <EmptyState icon="bi-bar-chart" text="Belum ada data biaya"/>}
       </div>
       <div className="card">
-        <div className="card-header"><span className="card-title">🏥 Health Score Unit</span></div>
+        <div className="card-header"><span className="card-title"><i className="bi bi-heart-pulse" /> Health Score Unit</span></div>
         {d.units.length===0 ? <EmptyState icon="bi-truck" text="Belum ada unit"/> :
           d.units.slice(0,8).map(u => {
             const os = UnitService.operationalStatus(u)
@@ -100,7 +100,7 @@ function OwDash() {
                   <span className={`badge ${os==='sehat'?'badge-ok':os==='hampir'?'badge-warn':'badge-error'}`}>{hp}%</span>
                 </div>
                 <div style={{height:5,background:'var(--bd)',borderRadius:3}}>
-                  <div style={{height:'100%',width:`${hp}%`,background:hp>60?'var(--ok)':hp>30?'var(--wn)':'var(--er)',borderRadius:3,transition:'width .6s cubic-bezier(.22,1,.36,1)'}}/>
+                  <div className="prog-bar-animated" style={{height:'100%',width:`${hp}%`,background:hp>60?'var(--ok)':hp>30?'var(--wn)':'var(--er)',borderRadius:3}}/>
                 </div>
               </div>
             )
@@ -129,9 +129,10 @@ function OwBiaya() {
   const pieData = Object.entries(d.cats).filter(([,v])=>v>0).map(([name,value])=>({name,value}))
   return (
     <div className="page-enter">
-      <div style={{display:'flex',gap:8,marginBottom:14}}>
+      <PageHeader icon="bi-cash-stack" title="Analisa Biaya" subtitle="Distribusi pengeluaran per kategori" />
+      <div className="filter-pills">
         {[['month','Bulan Ini'],['year','Tahun Ini']].map(([k,v])=>(
-          <button key={k} onClick={()=>setPeriod(k)} className={`btn btn-sm ${period===k?'btn-primary':'btn-secondary'}`}>{v}</button>
+          <button key={k} onClick={()=>setPeriod(k)} className={`pill ${period===k?'active':''}`}>{v}</button>
         ))}
       </div>
       <div style={{background:'linear-gradient(135deg,var(--prd),var(--pr))',borderRadius:12,padding:'18px 16px',color:'#fff',marginBottom:14}}>
@@ -139,15 +140,15 @@ function OwBiaya() {
         <div style={{fontFamily:'Space Grotesk',fontSize:24,fontWeight:800}}>{rp(d.total)}</div>
       </div>
       {pieData.length>0&&<div className="card" style={{marginBottom:14}}>
-        <div className="card-header"><span className="card-title">Distribusi</span></div>
+        <div className="card-header"><span className="card-title"><i className="bi bi-pie-chart-fill" /> Distribusi</span></div>
         <ResponsiveContainer width="100%" height={200}>
           <PieChart><Pie data={pieData} cx="50%" cy="50%" outerRadius={80} dataKey="value" label={({name,percent})=>`${name} ${(percent*100).toFixed(0)}%`} style={{fontSize:10}}>
-            {pieData.map((_,i)=><Cell key={i} fill={COLORS[i%COLORS.length]}/>)}
+            {pieData.map((_,i)=><Cell key={i} fill={CHART_COLORS[i%CHART_COLORS.length]}/>)}
           </Pie><Tooltip formatter={v=>rp(v)}/></PieChart>
         </ResponsiveContainer>
       </div>}
       <div className="card">
-        <div className="card-header"><span className="card-title">Rincian</span></div>
+        <div className="card-header"><span className="card-title"><i className="bi bi-list-ol" /> Rincian</span></div>
         {Object.entries(d.cats).filter(([,v])=>v>0).sort(([,a],[,b])=>b-a).map(([cat,amt],i)=>{
           const pct=d.total?Math.round(amt/d.total*100):0
           return <div key={cat} style={{marginBottom:10}}>
@@ -155,7 +156,7 @@ function OwBiaya() {
               <span style={{fontWeight:600}}>{cat}</span>
               <div style={{display:'flex',gap:8}}><span style={{fontSize:11,color:'var(--mu)'}}>{pct}%</span><span style={{fontWeight:700}}>{rp(amt)}</span></div>
             </div>
-            <div style={{height:5,background:'var(--bd)',borderRadius:3}}><div style={{height:'100%',width:`${pct}%`,background:`hsl(${i*45+15},56%,50%)`,borderRadius:3}}/></div>
+            <div style={{height:5,background:'var(--bd)',borderRadius:3}}><div className="prog-bar-animated" style={{height:'100%',width:`${pct}%`,background:CHART_COLORS[i%CHART_COLORS.length],borderRadius:3}}/></div>
           </div>
         })}
         {d.total===0&&<EmptyState icon="bi-receipt" text="Belum ada data biaya"/>}
@@ -178,14 +179,33 @@ function OwSolar() {
   },[])
   return (
     <div className="page-enter">
-      <div className="stat-grid stagger" style={{gridTemplateColumns:'repeat(3,1fr)'}}>
+      <PageHeader icon="bi-fuel-pump" title="Solar Analytics" subtitle="Konsumsi BBM real vs estimasi" />
+      <div className="stat-grid stagger">
         {[{l:'Total Real',v:`${num(rows.reduce((a,r)=>a+r.tL,0))} L`,c:'#b3700a'},{l:'Total Est.',v:`${num(rows.reduce((a,r)=>a+r.est,0))} L`,c:'var(--ok)'},{l:'Total Biaya',v:rp(rows.reduce((a,r)=>a+r.tC,0)),c:'var(--pr)'}].map(x=><div key={x.l} className="stat-card"><div className="stat-val" style={{fontSize:14,color:x.c}}>{x.v}</div><div className="stat-label">{x.l}</div></div>)}
       </div>
       <div className="card">
-        <div className="card-header"><span className="card-title">Tren Konsumsi Solar</span></div>
-        <ResponsiveContainer width="100%" height={160}><LineChart data={trend}><XAxis dataKey="label" tick={{fontSize:10}}/><YAxis tick={{fontSize:10}}/><Tooltip formatter={v=>`${num(v)} L`} contentStyle={{fontSize:11,borderRadius:8}}/><Line type="monotone" dataKey="liters" stroke="var(--pr)" strokeWidth={2} dot={{fill:'var(--pr)',r:3}}/></LineChart></ResponsiveContainer>
+        <div className="card-header"><span className="card-title"><i className="bi bi-graph-up" /> Tren Konsumsi Solar</span></div>
+        <ResponsiveContainer width="100%" height={160}><LineChart data={trend}><XAxis dataKey="label" tick={{fontSize:10}}/><YAxis tick={{fontSize:10}}/><Tooltip formatter={v=>`${num(v)} L`} contentStyle={{fontSize:11,borderRadius:8}}/><Line type="monotone" dataKey="liters" stroke={CHART_COLORS[0]} strokeWidth={2} dot={{fill:CHART_COLORS[0],r:3}}/></LineChart></ResponsiveContainer>
       </div>
-      {rows.length>0&&<div className="card"><div className="card-header"><span className="card-title">Detail per Unit</span></div><div className="table-wrap"><table><thead><tr><th>Unit</th><th>Real (L)</th><th>Selisih</th><th>Biaya</th></tr></thead><tbody>{rows.map(u=><tr key={u.lid}><td style={{fontWeight:600}}>{u.name}</td><td style={{fontWeight:700}}>{num(u.tL)}</td><td style={{color:u.dev>0?'var(--er)':'var(--ok)',fontWeight:600}}>{u.dev>0?'+':''}{num(u.dev)}</td><td style={{color:'var(--er)',fontWeight:600}}>{rp(u.tC)}</td></tr>)}</tbody></table></div></div>}
+      {rows.length>0&&<div className="card">
+        <div className="card-header"><span className="card-title"><i className="bi bi-table" /> Detail per Unit</span></div>
+        <DataList
+          rows={rows}
+          rowKey={u=>u.lid}
+          columns={[
+            { label:'Unit', render:u=><span style={{fontWeight:600}}>{u.name}</span> },
+            { label:'Real (L)', render:u=><span style={{fontWeight:700}}>{num(u.tL)}</span> },
+            { label:'Selisih', render:u=><span style={{color:u.dev>0?'var(--er)':'var(--ok)',fontWeight:600}}>{u.dev>0?'+':''}{num(u.dev)}</span> },
+            { label:'Biaya', render:u=><span style={{color:'var(--er)',fontWeight:600}}>{rp(u.tC)}</span> },
+          ]}
+          card={u=>({
+            title:u.name,
+            meta:<span style={{color:u.dev>0?'var(--er)':'var(--ok)'}}>Selisih {u.dev>0?'+':''}{num(u.dev)} L</span>,
+            val:`${num(u.tL)} L`,
+            valSub:rp(u.tC),
+          })}
+        />
+      </div>}
     </div>
   )
 }
@@ -194,13 +214,34 @@ function OwMaint() {
   const [d,setD]=useState([])
   const MT=[{t:'ringan'},{t:'sedang'},{t:'besar'},{t:'overhaul'},{t:'perbaikan'}]
   useEffect(()=>{async function load(){const units=await UnitService.getAll();const res=await Promise.all(units.map(async u=>{const logs=await SvcService.getByUnit(u.lid);const bT={};MT.forEach(m=>{bT[m.t]={count:0,cost:0}});logs.forEach(l=>{if(bT[l.maintenanceType]){bT[l.maintenanceType].count++;bT[l.maintenanceType].cost+=l.cost||0}});return{...u,logs,tCost:logs.reduce((a,l)=>a+(l.cost||0),0),tDt:logs.reduce((a,l)=>a+(l.downtimeHours||0),0),bT,os:UnitService.operationalStatus(u)}}));setD(res.sort((a,b)=>b.tCost-a.tCost))}; load()},[])
+  const dotOf = os => os==='sehat'?'ok':os==='hampir'?'warn':'er'
+  const lblOf = os => os==='sehat'?'Sehat':os==='hampir'?'Hampir':'Overdue'
   return(
     <div className="page-enter">
-      <div className="stat-grid stagger" style={{gridTemplateColumns:'repeat(2,1fr)'}}>
+      <PageHeader icon="bi-tools" title="Maintenance" subtitle="Rekap service & downtime per unit" />
+      <div className="stat-grid stagger">
         {[{l:'Total Service',v:d.reduce((a,u)=>a+u.logs.length,0),c:'var(--pr)'},{l:'Total Biaya',v:rp(d.reduce((a,u)=>a+u.tCost,0)),c:'var(--er)'},{l:'Total Downtime',v:`${num(d.reduce((a,u)=>a+u.tDt,0))}h`,c:'var(--wn)'},{l:'Overdue',v:d.filter(u=>u.os==='overdue').length,c:'var(--er)'}].map(x=><div key={x.l} className="stat-card"><div className="stat-val" style={{fontSize:16,color:x.c}}>{x.v}</div><div className="stat-label">{x.l}</div></div>)}
       </div>
-      <div className="card"><div className="card-header"><span className="card-title">Detail per Unit</span></div>
-        {d.length===0?<EmptyState icon="bi-tools" text="Belum ada data"/>:<div className="table-wrap"><table><thead><tr><th>Unit</th><th>Status</th><th>Service</th><th>Biaya</th><th>Downtime</th></tr></thead><tbody>{d.map(u=><tr key={u.lid}><td style={{fontWeight:600}}>{u.name}</td><td><span className={`badge ${u.os==='sehat'?'badge-ok':u.os==='hampir'?'badge-warn':'badge-error'}`}>{u.os==='sehat'?'Sehat':u.os==='hampir'?'Hampir':'Overdue'}</span></td><td style={{fontWeight:700}}>{u.logs.length}x</td><td style={{color:'var(--er)',fontWeight:600}}>{rp(u.tCost)}</td><td>{u.tDt?`${u.tDt}h`:'-'}</td></tr>)}</tbody></table></div>}
+      <div className="card">
+        <div className="card-header"><span className="card-title"><i className="bi bi-table" /> Detail per Unit</span></div>
+        {d.length===0?<EmptyState icon="bi-tools" text="Belum ada data"/>:(
+          <DataList
+            rows={d}
+            rowKey={u=>u.lid}
+            columns={[
+              { label:'Unit', render:u=><span style={{fontWeight:600}}>{u.name}</span> },
+              { label:'Status', render:u=><span className={`badge ${u.os==='sehat'?'badge-ok':u.os==='hampir'?'badge-warn':'badge-error'}`}>{lblOf(u.os)}</span> },
+              { label:'Service', render:u=><span style={{fontWeight:700}}>{u.logs.length}x</span> },
+              { label:'Biaya', render:u=><span style={{color:'var(--er)',fontWeight:600}}>{rp(u.tCost)}</span> },
+              { label:'Downtime', render:u=>u.tDt?`${u.tDt}h`:'-' },
+            ]}
+            card={u=>({
+              title:u.name,
+              meta:<StatusDot status={dotOf(u.os)} label={`${lblOf(u.os)} · ${u.logs.length}x service${u.tDt?` · ${u.tDt}h downtime`:''}`} />,
+              val:rp(u.tCost),
+            })}
+          />
+        )}
       </div>
     </div>
   )
@@ -210,13 +251,16 @@ function OwRank() {
   const [d,setD]=useState([])
   useEffect(()=>{async function load(){const units=await UnitService.getAll();const res=await Promise.all(units.map(async u=>{const[costs,solar,svc]=await Promise.all([CostService.getAll(),SolarService.getByUnit(u.lid),SvcService.getByUnit(u.lid)]);const unitCosts=costs.filter(c=>c.unit_lid===u.lid);const tC=unitCosts.reduce((a,c)=>a+(c.amount||0),0)+solar.reduce((a,l)=>a+(l.liters||0)*(l.pricePerLiter||0),0)+svc.reduce((a,l)=>a+(l.cost||0),0);const tD=svc.reduce((a,l)=>a+(l.downtimeHours||0),0);const os=UnitService.operationalStatus(u);const hp=os==='sehat'?85:os==='hampir'?55:25;const score=Math.max(0,Math.min(100,Math.round(hp-(u.totalHours?(tD/u.totalHours)*50:0))));return{...u,tC,tD,cph:u.totalHours>0?tC/u.totalHours:0,score,os}}));setD(res.sort((a,b)=>b.score-a.score))}; load()},[])
   return(
-    <div className="page-enter"><div className="card"><div className="card-header"><span className="card-title">🏆 Ranking Performa Unit</span></div>
-      {d.length===0?<EmptyState icon="bi-trophy" text="Belum ada data unit"/>:d.map((u,i)=><div key={u.lid} style={{display:'flex',alignItems:'center',gap:10,padding:'10px 0',borderBottom:i<d.length-1?'1px solid var(--bd)':'none'}}>
-        <div style={{width:26,height:26,borderRadius:'50%',background:i<3?'var(--ac)':'var(--bg)',display:'flex',alignItems:'center',justifyContent:'center',fontWeight:700,fontSize:11,color:i<3?'var(--prd)':'var(--mu)',flexShrink:0}}>#{i+1}</div>
-        <div style={{flex:1,minWidth:0}}><div style={{fontWeight:700,fontSize:13,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{u.name}</div><div style={{fontSize:11,color:'var(--mu)'}}>{num(u.totalHours)}h · {rp(u.tC)}</div><div style={{height:4,background:'var(--bd)',borderRadius:2,marginTop:4}}><div style={{height:'100%',width:`${u.score}%`,background:u.score>70?'var(--ok)':u.score>40?'var(--wn)':'var(--er)',borderRadius:2}}/></div></div>
-        <div style={{textAlign:'right',flexShrink:0}}><div style={{fontFamily:'Space Grotesk',fontWeight:800,fontSize:20,color:u.score>70?'var(--ok)':u.score>40?'var(--wn)':'var(--er)',lineHeight:1}}>{u.score}</div><div style={{fontSize:9.5,color:'var(--mu)'}}>SKOR</div></div>
-      </div>)}
-    </div></div>
+    <div className="page-enter">
+      <PageHeader icon="bi-trophy" title="Ranking Unit" subtitle="Skor performa berdasarkan kondisi & downtime" />
+      <div className="card">
+        {d.length===0?<EmptyState icon="bi-trophy" text="Belum ada data unit"/>:d.map((u,i)=><div key={u.lid} style={{display:'flex',alignItems:'center',gap:10,padding:'10px 0',borderBottom:i<d.length-1?'1px solid var(--bd)':'none'}}>
+          <div style={{width:26,height:26,borderRadius:'50%',background:i<3?'var(--ac)':'var(--bg)',display:'flex',alignItems:'center',justifyContent:'center',fontWeight:700,fontSize:11,color:i<3?'var(--prd)':'var(--mu)',flexShrink:0}}>#{i+1}</div>
+          <div style={{flex:1,minWidth:0}}><div style={{fontWeight:700,fontSize:13,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{u.name}</div><div style={{fontSize:11,color:'var(--mu)'}}>{num(u.totalHours)}h · {rp(u.tC)}</div><div style={{height:4,background:'var(--bd)',borderRadius:2,marginTop:4}}><div className="prog-bar-animated" style={{height:'100%',width:`${u.score}%`,background:u.score>70?'var(--ok)':u.score>40?'var(--wn)':'var(--er)',borderRadius:2}}/></div></div>
+          <div style={{textAlign:'right',flexShrink:0}}><div style={{fontFamily:'Space Grotesk',fontWeight:800,fontSize:20,color:u.score>70?'var(--ok)':u.score>40?'var(--wn)':'var(--er)',lineHeight:1}}>{u.score}</div><div style={{fontSize:9.5,color:'var(--mu)'}}>SKOR</div></div>
+        </div>)}
+      </div>
+    </div>
   )
 }
 
@@ -225,10 +269,36 @@ function OwDep() {
   useEffect(()=>{UnitService.getAll().then(units=>{const r=units.filter(u=>u.purchasePrice).map(u=>{const ann=u.purchasePrice&&u.economicLifeYears?(u.purchasePrice*(1-(u.residualPercent||10)/100))/u.economicLifeYears:0;const yrs=new Date().getFullYear()-(u.purchaseYear||new Date().getFullYear());const res=u.purchasePrice*((u.residualPercent||10)/100);const bv=Math.max(res,u.purchasePrice-ann*yrs);const pct=u.purchasePrice?Math.round((1-bv/u.purchasePrice)*100):0;return{...u,ann,bv,yrs,pct}}).sort((a,b)=>b.pct-a.pct);setD(r)})},[])
   return(
     <div className="page-enter">
-      <div className="stat-grid stagger" style={{gridTemplateColumns:'repeat(3,1fr)'}}>
+      <PageHeader icon="bi-graph-down" title="Depresiasi" subtitle="Nilai buku aset berdasarkan umur ekonomis" />
+      <div className="stat-grid stagger">
         {[{l:'Total Nilai Beli',v:rp(d.reduce((a,u)=>a+(u.purchasePrice||0),0)),c:'var(--pr)'},{l:'Total Nilai Buku',v:rp(d.reduce((a,u)=>a+u.bv,0)),c:'var(--ok)'},{l:'Dep/Tahun',v:rp(d.reduce((a,u)=>a+u.ann,0)),c:'var(--wn)'}].map(x=><div key={x.l} className="stat-card"><div className="stat-val" style={{fontSize:13,color:x.c}}>{x.v}</div><div className="stat-label">{x.l}</div></div>)}
       </div>
-      {d.length===0?<EmptyState icon="bi-graph-down" text="Tambahkan harga beli pada data unit"/>:<div className="card"><div className="card-header"><span className="card-title">Detail Depresiasi</span></div><div className="table-wrap"><table><thead><tr><th>Unit</th><th>Harga Beli</th><th>Nilai Buku</th><th>Terdepresiasi</th></tr></thead><tbody>{d.map(u=><tr key={u.lid}><td><div style={{fontWeight:600}}>{u.name}</div><div style={{fontSize:10,color:'var(--mu)'}}>{u.purchaseYear} ({u.yrs}th)</div></td><td style={{fontWeight:700}}>{rp(u.purchasePrice||0)}</td><td style={{fontWeight:700,color:'var(--pr)'}}>{rp(u.bv)}</td><td style={{minWidth:100}}><div style={{display:'flex',alignItems:'center',gap:6}}><div style={{flex:1,height:5,background:'var(--bd)',borderRadius:3}}><div style={{height:'100%',width:`${u.pct}%`,background:u.pct>70?'var(--er)':u.pct>40?'var(--wn)':'var(--ok)',borderRadius:3}}/></div><span style={{fontSize:11,fontWeight:700,whiteSpace:'nowrap'}}>{u.pct}%</span></div></td></tr>)}</tbody></table></div></div>}
+      {d.length===0?<EmptyState icon="bi-graph-down" text="Tambahkan harga beli pada data unit"/>:(
+        <div className="card">
+          <div className="card-header"><span className="card-title"><i className="bi bi-table" /> Detail Depresiasi</span></div>
+          <DataList
+            rows={d}
+            rowKey={u=>u.lid}
+            columns={[
+              { label:'Unit', render:u=><><div style={{fontWeight:600}}>{u.name}</div><div style={{fontSize:10,color:'var(--mu)'}}>{u.purchaseYear} ({u.yrs}th)</div></> },
+              { label:'Harga Beli', render:u=><span style={{fontWeight:700}}>{rp(u.purchasePrice||0)}</span> },
+              { label:'Nilai Buku', render:u=><span style={{fontWeight:700,color:'var(--pr)'}}>{rp(u.bv)}</span> },
+              { label:'Terdepresiasi', render:u=>(
+                <div style={{display:'flex',alignItems:'center',gap:6,minWidth:100}}>
+                  <div style={{flex:1,height:5,background:'var(--bd)',borderRadius:3}}><div style={{height:'100%',width:`${u.pct}%`,background:u.pct>70?'var(--er)':u.pct>40?'var(--wn)':'var(--ok)',borderRadius:3}}/></div>
+                  <span style={{fontSize:11,fontWeight:700,whiteSpace:'nowrap'}}>{u.pct}%</span>
+                </div>
+              ) },
+            ]}
+            card={u=>({
+              title:u.name,
+              meta:`${u.purchaseYear} (${u.yrs}th) · terdepresiasi ${u.pct}%`,
+              val:rp(u.bv),
+              valSub:`beli ${rp(u.purchasePrice||0)}`,
+            })}
+          />
+        </div>
+      )}
     </div>
   )
 }
@@ -238,41 +308,48 @@ function OwSpare() {
   const load=useCallback(async()=>setStock(await StockService.getAll()),[])
   useEffect(()=>{load()},[load])
   const low=stock.filter(s=>(s.qty||0)<=(s.minQty||2))
+  const statusOf = s => (s.qty||0)<=0?{cls:'badge-error',dot:'er',label:'Habis'}:(s.qty||0)<=(s.minQty||2)?{cls:'badge-warn',dot:'warn',label:'Menipis'}:{cls:'badge-ok',dot:'ok',label:'Aman'}
   return(
     <div className="page-enter"><Toast msg={msg}/>
+      <PageHeader icon="bi-boxes" title="Spare Part" subtitle="Stok suku cadang gudang"
+        action={<button className="btn btn-primary btn-sm" onClick={()=>{setF({name:'',qty:0,unit:'pcs',minQty:2});setModal('add')}}><i className="bi bi-plus-lg"/>Tambah</button>} />
       {low.length>0&&<div className="alert alert-error"><i className="bi bi-exclamation-octagon-fill"/>{low.length} item stok menipis!</div>}
-      <div style={{display:'flex',justifyContent:'flex-end',marginBottom:8}}><button className="btn btn-primary btn-sm" onClick={()=>{setF({name:'',qty:0,unit:'pcs',minQty:2});setModal('add')}}><i className="bi bi-plus-lg"/>Tambah</button></div>
-      {stock.length===0?<EmptyState icon="bi-archive" text="Belum ada stok spare part"/>:<div className="card"><div className="table-wrap"><table><thead><tr><th>Nama Part</th><th>Stok</th><th>Status</th><th></th></tr></thead><tbody>{stock.map(s=><tr key={s.lid}><td style={{fontWeight:600}}>{s.name}</td><td style={{fontWeight:700,color:(s.qty||0)<=(s.minQty||2)?'var(--er)':'var(--ok)'}}>{s.qty||0} {s.unit||'pcs'}</td><td><span className={`badge ${(s.qty||0)<=0?'badge-error':(s.qty||0)<=(s.minQty||2)?'badge-warn':'badge-ok'}`}>{(s.qty||0)<=0?'Habis':(s.qty||0)<=(s.minQty||2)?'Menipis':'Aman'}</span></td><td style={{display:'flex',gap:4}}><button className="btn-icon btn-sm" onClick={()=>{setF({...s});setModal('edit')}}><i className="bi bi-pencil"/></button><button className="btn-icon btn-sm" onClick={()=>setConfirm(s)}><i className="bi bi-trash3"/></button></td></tr>)}</tbody></table></div></div>}
-      {(modal==='add'||modal==='edit')&&<div className="modal-overlay" onClick={()=>setModal(null)}><div className="modal" onClick={e=>e.stopPropagation()}><div className="modal-title">{modal==='add'?'Tambah':'Edit'} Stok</div><div className="form-group"><label className="form-label">Nama Part</label><input className="form-input" value={f.name} onChange={e=>sf('name',e.target.value)}/></div><div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:10}}><div className="form-group"><label className="form-label">Stok</label><input type="number" className="form-input" value={f.qty} onChange={e=>sf('qty',e.target.value)} inputMode="numeric"/></div><div className="form-group"><label className="form-label">Min</label><input type="number" className="form-input" value={f.minQty} onChange={e=>sf('minQty',e.target.value)}/></div><div className="form-group"><label className="form-label">Satuan</label><input className="form-input" value={f.unit} onChange={e=>sf('unit',e.target.value)}/></div></div><div className="modal-footer"><button className="btn btn-primary btn-full" onClick={async()=>{if(f.lid)await StockService.update(f.lid,f);else await StockService.add(f);showMsg('Tersimpan!');setModal(null);load()}} disabled={!f.name}><i className="bi bi-floppy-fill"/>Simpan</button><button className="btn btn-secondary" onClick={()=>setModal(null)}>Batal</button></div></div></div>}
+      {stock.length===0?<EmptyState icon="bi-archive" text="Belum ada stok spare part"/>:(
+        <div className="card">
+          <DataList
+            rows={stock}
+            rowKey={s=>s.lid}
+            columns={[
+              { label:'Nama Part', render:s=><span style={{fontWeight:600}}>{s.name}</span> },
+              { label:'Stok', render:s=><span style={{fontWeight:700,color:(s.qty||0)<=(s.minQty||2)?'var(--er)':'var(--ok)'}}>{s.qty||0} {s.unit||'pcs'}</span> },
+              { label:'Status', render:s=>{const st=statusOf(s);return <span className={`badge ${st.cls}`}>{st.label}</span>} },
+            ]}
+            card={s=>{
+              const st=statusOf(s)
+              return { title:s.name, meta:<StatusDot status={st.dot} label={st.label} />, val:`${s.qty||0} ${s.unit||'pcs'}` }
+            }}
+            actions={s=><>
+              <button className="btn-icon" onClick={()=>{setF({...s});setModal('edit')}} aria-label="Edit"><i className="bi bi-pencil"/></button>
+              <button className="btn-icon" onClick={()=>setConfirm(s)} aria-label="Hapus"><i className="bi bi-trash3"/></button>
+            </>}
+          />
+        </div>
+      )}
+      {(modal==='add'||modal==='edit')&&(
+        <ModalShell title={`${modal==='add'?'Tambah':'Edit'} Stok`} icon="bi-boxes" onClose={()=>setModal(null)}
+          footer={<>
+            <button className="btn btn-primary btn-full" onClick={async()=>{if(f.lid)await StockService.update(f.lid,f);else await StockService.add(f);showMsg('Tersimpan!');setModal(null);load()}} disabled={!f.name}><i className="bi bi-floppy-fill"/>Simpan</button>
+            <button className="btn btn-secondary" onClick={()=>setModal(null)}>Batal</button>
+          </>}>
+          <div className="form-group"><label className="form-label">Nama Part</label><input className="form-input" value={f.name} onChange={e=>sf('name',e.target.value)}/></div>
+          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:10}}>
+            <div className="form-group"><label className="form-label">Stok</label><input type="number" className="form-input" value={f.qty} onChange={e=>sf('qty',e.target.value)} inputMode="numeric"/></div>
+            <div className="form-group"><label className="form-label">Min</label><input type="number" className="form-input" value={f.minQty} onChange={e=>sf('minQty',e.target.value)}/></div>
+            <div className="form-group"><label className="form-label">Satuan</label><input className="form-input" value={f.unit} onChange={e=>sf('unit',e.target.value)}/></div>
+          </div>
+        </ModalShell>
+      )}
       {confirm&&<ConfirmModal msg={`Hapus "${confirm.name}"?`} onConfirm={async()=>{await StockService.delete(confirm.lid);showMsg('Dihapus');setConfirm(null);load()}} onClose={()=>setConfirm(null)}/>}
-    </div>
-  )
-}
-
-function OwExport() {
-  const [msg,showMsg]=useToast(); const [loading,setLoading]=useState(''); const [exportMonth,setExportMonth]=useState(dayjs().format('YYYY-MM'))
-  const doExport=async(type)=>{setLoading(type);try{if(type==='service')await exportServiceLog();else if(type==='solar')await exportSolarLog();else if(type==='inspeksi')await exportInspeksiLog();else if(type==='bulanan'){const[year,month]=exportMonth.split('-').map(Number);await exportRingkasanBulanan(year,month)}else if(type==='pdf'){const[year,month]=exportMonth.split('-').map(Number);await exportLaporanPDF(year,month)};showMsg('✅ File berhasil didownload!')}catch(e){showMsg('❌ Export gagal')};setLoading('')}
-  return(
-    <div className="page-enter"><Toast msg={msg}/>
-      <div className="card"><div className="card-header"><span className="card-title">📊 Export Bulanan</span></div><div style={{display:'flex',gap:10,alignItems:'flex-end'}}><div className="form-group" style={{flex:1,marginBottom:0}}><label className="form-label">Pilih Bulan</label><input type="month" className="form-input" value={exportMonth} onChange={e=>setExportMonth(e.target.value)}/></div><button className="btn btn-primary" onClick={()=>doExport('bulanan')} disabled={loading==='bulanan'}><i className="bi bi-file-earmark-excel-fill"/>{loading==='bulanan'?'...':'Excel'}</button><button className="btn btn-secondary" onClick={()=>doExport('pdf')} disabled={loading==='pdf'} style={{background:'#e53e3e',color:'#fff',border:'none'}}><i className="bi bi-file-earmark-pdf-fill"/>{loading==='pdf'?'...':'PDF'}</button></div></div>
-      <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(150px,1fr))',gap:10}}>
-        {[{type:'service',ico:'🔧',title:'Service Log'},{type:'solar',ico:'⛽',title:'Solar Log'},{type:'inspeksi',ico:'📋',title:'Inspeksi'}].map(c=><div key={c.type} className="card" style={{textAlign:'center'}}><div style={{fontSize:24,marginBottom:6}}>{c.ico}</div><div style={{fontWeight:700,fontSize:13,marginBottom:10}}>{c.title}</div><button className="btn btn-secondary btn-full btn-sm" onClick={()=>doExport(c.type)} disabled={loading===c.type}><i className="bi bi-download"/>{loading===c.type?'...':'Excel'}</button></div>)}
-      </div>
-    </div>
-  )
-}
-
-function OwSync() {
-  const {online,syncing,lastSync,doSync}=useSync(); const [prog,setProg]=useState(''); const [pulling,setPulling]=useState(false); const [msg,showMsg]=useToast()
-  const pullAll=async()=>{if(!online){showMsg('Tidak ada koneksi');return};setPulling(true);setProg('Memulai...');const res=await pullFromCloud(m=>setProg(m));setPulling(false);if(res.success){showMsg('✅ Berhasil!');setProg('Selesai ✓')}else{showMsg('❌ Gagal: '+res.error);setProg('')}}
-  return(
-    <div className="page-enter"><Toast msg={msg}/>
-      <div className="card"><div className="card-header"><span className="card-title">Status Jaringan</span></div><div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:10}}>{[{l:'Jaringan',v:online?'🟢 Online':'🔴 Offline'},{l:'Status',v:syncing?'⏳ Proses...':'✅ Idle'},{l:'Terakhir Sync',v:lastSync?lastSync.toLocaleTimeString('id-ID',{hour:'2-digit',minute:'2-digit'}):'-'}].map(x=><div key={x.l} style={{background:'var(--bg)',borderRadius:8,padding:'10px 12px'}}><div style={{fontSize:10,color:'var(--mu)',fontWeight:600,marginBottom:3}}>{x.l}</div><div style={{fontFamily:'Space Grotesk',fontWeight:700,fontSize:12}}>{x.v}</div></div>)}</div></div>
-      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}>
-        <div className="card" style={{textAlign:'center'}}><div style={{fontSize:24,marginBottom:8}}>📤</div><div style={{fontWeight:700,fontSize:13,marginBottom:4}}>Push ke Cloud</div><div style={{fontSize:11,color:'var(--mu)',marginBottom:12}}>Kirim data pending</div><button className="btn btn-primary btn-full btn-sm" onClick={doSync} disabled={!online||syncing}><i className={`bi ${syncing?'bi-arrow-repeat spin':'bi-cloud-upload-fill'}`}/>{syncing?'Sync...':'Push'}</button></div>
-        <div className="card" style={{textAlign:'center'}}><div style={{fontSize:24,marginBottom:8}}>📥</div><div style={{fontWeight:700,fontSize:13,marginBottom:4}}>Pull dari Cloud</div>{prog&&<div style={{fontSize:10,color:'var(--in)',marginBottom:8}}>{prog}</div>}<div style={{fontSize:11,color:'var(--mu)',marginBottom:12}}>Ambil semua data</div><button className="btn btn-secondary btn-full btn-sm" onClick={pullAll} disabled={!online||pulling}><i className={`bi ${pulling?'bi-arrow-repeat spin':'bi-cloud-download-fill'}`}/>{pulling?'...':'Pull'}</button></div>
-      </div>
-      <div className="card"><div className="card-header"><span className="card-title">📱 Cara Install di HP</span></div>{[['1','Buka di Safari (iOS) atau Chrome (Android)'],['2','iOS: Tap Share → "Add to Home Screen"'],['3','Android: Tap menu ⋮ → "Add to Home Screen"'],['4','Tap Add — app muncul di home screen']].map(([n,t])=><div key={n} style={{display:'flex',gap:10,alignItems:'flex-start',marginBottom:10}}><div style={{width:22,height:22,borderRadius:'50%',background:'var(--pr)',color:'#fff',display:'flex',alignItems:'center',justifyContent:'center',fontWeight:700,fontSize:10,flexShrink:0}}>{n}</div><span style={{fontSize:13}}>{t}</span></div>)}</div>
     </div>
   )
 }
@@ -323,7 +400,8 @@ function OwTransaksi() {
   return (
     <div className="page-enter">
       <Toast msg={msg} />
-      <div className="stat-grid" style={{ gridTemplateColumns: 'repeat(2,1fr)', marginBottom: keluarTanpaNominal > 0 ? 6 : 14 }}>
+      <PageHeader icon="bi-cash-coin" title="Transaksi Kas" subtitle="Rekap kas masuk/keluar — hanya bisa diakses Owner" />
+      <div className="stat-grid" style={{ marginBottom: keluarTanpaNominal > 0 ? 6 : 14 }}>
         <div className="stat-card"><div className="stat-val" style={{ fontSize: 16, color: 'var(--ok)' }}>{rp(totalMasuk)}</div><div className="stat-label">Nominal Masuk (Rp tercatat)</div></div>
         <div className="stat-card"><div className="stat-val" style={{ fontSize: 16, color: 'var(--er)' }}>{rp(totalKeluar)}</div><div className="stat-label">Nominal Keluar (Rp tercatat)</div></div>
       </div>
@@ -334,10 +412,10 @@ function OwTransaksi() {
       )}
 
       <div className="card">
-        <div className="card-header"><span className="card-title">📊 Filter & Export</span></div>
-        <div style={{ display: 'flex', gap: 8, marginBottom: 10, flexWrap: 'wrap' }}>
+        <div className="card-header"><span className="card-title"><i className="bi bi-funnel-fill" /> Filter & Export</span></div>
+        <div className="filter-pills" style={{ marginBottom: 10 }}>
           {[['week', 'Minggu Ini'], ['2week', '2 Minggu Terakhir'], ['month', 'Bulan Ini']].map(([k, l]) => (
-            <button key={k} className="btn btn-secondary btn-sm" onClick={() => setPreset(k)}>{l}</button>
+            <button key={k} className="pill" onClick={() => setPreset(k)}>{l}</button>
           ))}
         </div>
         <div style={{ display: 'flex', gap: 10, alignItems: 'flex-end', flexWrap: 'wrap' }}>
@@ -387,6 +465,70 @@ function OwTransaksi() {
   )
 }
 
+function OwExport() {
+  const [msg,showMsg]=useToast(); const [loading,setLoading]=useState(''); const [exportMonth,setExportMonth]=useState(dayjs().format('YYYY-MM'))
+  const doExport=async(type)=>{setLoading(type);try{if(type==='service')await exportServiceLog();else if(type==='solar')await exportSolarLog();else if(type==='inspeksi')await exportInspeksiLog();else if(type==='bulanan'){const[year,month]=exportMonth.split('-').map(Number);await exportRingkasanBulanan(year,month)}else if(type==='pdf'){const[year,month]=exportMonth.split('-').map(Number);await exportLaporanPDF(year,month)};showMsg('✅ File berhasil didownload!')}catch(e){showMsg('❌ Export gagal')};setLoading('')}
+  return(
+    <div className="page-enter"><Toast msg={msg}/>
+      <PageHeader icon="bi-download" title="Export Excel" subtitle="Unduh laporan bulanan & log data" />
+      <div className="card">
+        <div className="card-header"><span className="card-title"><i className="bi bi-file-earmark-spreadsheet" /> Export Bulanan</span></div>
+        <div style={{display:'flex',gap:10,alignItems:'flex-end',flexWrap:'wrap'}}>
+          <div className="form-group" style={{flex:1,minWidth:160,marginBottom:0}}><label className="form-label">Pilih Bulan</label><input type="month" className="form-input" value={exportMonth} onChange={e=>setExportMonth(e.target.value)}/></div>
+          <button className="btn btn-primary" onClick={()=>doExport('bulanan')} disabled={loading==='bulanan'}><i className="bi bi-file-earmark-excel-fill"/>{loading==='bulanan'?'...':'Excel'}</button>
+          <button className="btn btn-danger" onClick={()=>doExport('pdf')} disabled={loading==='pdf'}><i className="bi bi-file-earmark-pdf-fill"/>{loading==='pdf'?'...':'PDF'}</button>
+        </div>
+      </div>
+      <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(150px,1fr))',gap:10}}>
+        {[{type:'service',ico:'bi-tools',title:'Service Log'},{type:'solar',ico:'bi-fuel-pump-fill',title:'Solar Log'},{type:'inspeksi',ico:'bi-clipboard2-check-fill',title:'Inspeksi'}].map(c=><div key={c.type} className="card" style={{textAlign:'center'}}>
+          <i className={`bi ${c.ico}`} style={{fontSize:24,marginBottom:6,color:'var(--pr)',display:'block'}}/>
+          <div style={{fontWeight:700,fontSize:13,marginBottom:10}}>{c.title}</div>
+          <button className="btn btn-secondary btn-full btn-sm" onClick={()=>doExport(c.type)} disabled={loading===c.type}><i className="bi bi-download"/>{loading===c.type?'...':'Excel'}</button>
+        </div>)}
+      </div>
+    </div>
+  )
+}
+
+function OwSync() {
+  const {online,syncing,lastSync,doSync}=useSync(); const [prog,setProg]=useState(''); const [pulling,setPulling]=useState(false); const [msg,showMsg]=useToast()
+  const pullAll=async()=>{if(!online){showMsg('Tidak ada koneksi');return};setPulling(true);setProg('Memulai...');const res=await pullFromCloud(m=>setProg(m));setPulling(false);if(res.success){showMsg('✅ Berhasil!');setProg('Selesai ✓')}else{showMsg('❌ Gagal: '+res.error);setProg('')}}
+  return(
+    <div className="page-enter"><Toast msg={msg}/>
+      <PageHeader icon="bi-cloud-arrow-up" title="Sync Cloud" subtitle="Kelola sinkronisasi data lokal ↔ cloud" />
+      <div className="card">
+        <div className="card-header"><span className="card-title"><i className="bi bi-wifi" /> Status Jaringan</span></div>
+        <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(100px,1fr))',gap:10}}>
+          {[
+            {l:'Jaringan',v:<StatusDot status={online?'ok':'er'} label={online?'Online':'Offline'} />},
+            {l:'Status',v:<StatusDot status={syncing?'in':'ok'} label={syncing?'Proses...':'Idle'} />},
+            {l:'Terakhir Sync',v:<span style={{fontFamily:'Space Grotesk',fontWeight:700,fontSize:12}}>{lastSync?lastSync.toLocaleTimeString('id-ID',{hour:'2-digit',minute:'2-digit'}):'-'}</span>},
+          ].map(x=><div key={x.l} style={{background:'var(--bg)',borderRadius:8,padding:'10px 12px'}}><div style={{fontSize:10,color:'var(--mu)',fontWeight:600,marginBottom:3}}>{x.l}</div>{x.v}</div>)}
+        </div>
+      </div>
+      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}>
+        <div className="card" style={{textAlign:'center'}}>
+          <i className="bi bi-cloud-upload-fill" style={{fontSize:24,marginBottom:8,color:'var(--pr)',display:'block'}}/>
+          <div style={{fontWeight:700,fontSize:13,marginBottom:4}}>Push ke Cloud</div>
+          <div style={{fontSize:11,color:'var(--mu)',marginBottom:12}}>Kirim data pending</div>
+          <button className="btn btn-primary btn-full btn-sm" onClick={doSync} disabled={!online||syncing}><i className={`bi ${syncing?'bi-arrow-repeat spin':'bi-cloud-upload-fill'}`}/>{syncing?'Sync...':'Push'}</button>
+        </div>
+        <div className="card" style={{textAlign:'center'}}>
+          <i className="bi bi-cloud-download-fill" style={{fontSize:24,marginBottom:8,color:'var(--in)',display:'block'}}/>
+          <div style={{fontWeight:700,fontSize:13,marginBottom:4}}>Pull dari Cloud</div>
+          {prog&&<div style={{fontSize:10,color:'var(--in)',marginBottom:8}}>{prog}</div>}
+          <div style={{fontSize:11,color:'var(--mu)',marginBottom:12}}>Ambil semua data</div>
+          <button className="btn btn-secondary btn-full btn-sm" onClick={pullAll} disabled={!online||pulling}><i className={`bi ${pulling?'bi-arrow-repeat spin':'bi-cloud-download-fill'}`}/>{pulling?'...':'Pull'}</button>
+        </div>
+      </div>
+      <div className="card">
+        <div className="card-header"><span className="card-title"><i className="bi bi-phone" /> Cara Install di HP</span></div>
+        {[['1','Buka di Safari (iOS) atau Chrome (Android)'],['2','iOS: Tap Share → "Add to Home Screen"'],['3','Android: Tap menu ⋮ → "Add to Home Screen"'],['4','Tap Add — app muncul di home screen']].map(([n,t])=><div key={n} style={{display:'flex',gap:10,alignItems:'flex-start',marginBottom:10}}><div style={{width:22,height:22,borderRadius:'50%',background:'var(--pr)',color:'#fff',display:'flex',alignItems:'center',justifyContent:'center',fontWeight:700,fontSize:10,flexShrink:0}}>{n}</div><span style={{fontSize:13}}>{t}</span></div>)}
+      </div>
+    </div>
+  )
+}
+
 const OWNER_PAGES = { dashboard:OwDash, biaya:OwBiaya, solar:OwSolar, maint:OwMaint, ranking:OwRank, dep:OwDep, spare:OwSpare, transaksi:OwTransaksi, export:OwExport, sync:OwSync, notes:DailyNotesPage }
 
 // ── MAIN OWNER SHELL — sama kayak operator (topbar + hamburger) ──
@@ -399,17 +541,17 @@ export default function OwnerDashboard({ onClose }) {
   const navigate = (id) => { setTab(id); setSidebarOpen(false) }
 
   return (
-    <div style={{ height:'100vh', height:'100dvh', display:'flex', flexDirection:'column', overflow:'hidden', background:'var(--bg)' }}>
+    <div style={{ height:'100dvh', display:'flex', flexDirection:'column', overflow:'hidden', background:'var(--bg)' }}>
 
       {/* Topbar — mobile only */}
       <div className="owner-topbar">
-        <button onClick={() => setSidebarOpen(o => !o)} style={{ background:'none', border:'none', color:'var(--ac)', fontSize:22, cursor:'pointer', padding:4, display:'flex', alignItems:'center' }}>
+        <button onClick={() => setSidebarOpen(o => !o)} aria-label="Menu" style={{ background:'none', border:'none', color:'var(--ac)', fontSize:22, cursor:'pointer', padding:'8px 6px', display:'flex', alignItems:'center' }}>
           <i className="bi bi-list"/>
         </button>
-        <span style={{ fontFamily:'Space Grotesk', fontWeight:700, fontSize:16, color:'var(--ac)', flex:1 }}>
-          👑 {currentTab?.label || 'Owner'}
+        <span style={{ fontFamily:'Space Grotesk', fontWeight:700, fontSize:16, color:'var(--ac)', flex:1, display:'flex', alignItems:'center', gap:8 }}>
+          <i className="bi bi-gem" style={{ fontSize:14 }}/> {currentTab?.label || 'Owner'}
         </span>
-        <button onClick={onClose} style={{ background:'rgba(255,255,255,.1)', border:'none', color:'rgba(255,255,255,.7)', fontSize:12, fontWeight:600, padding:'6px 12px', borderRadius:8, cursor:'pointer', display:'flex', alignItems:'center', gap:5 }}>
+        <button onClick={onClose} style={{ background:'rgba(255,255,255,.1)', border:'none', color:'rgba(255,255,255,.7)', fontSize:12, fontWeight:600, padding:'8px 12px', borderRadius:8, cursor:'pointer', display:'flex', alignItems:'center', gap:5 }}>
           <i className="bi bi-x-circle"/> Tutup
         </button>
       </div>
@@ -419,30 +561,23 @@ export default function OwnerDashboard({ onClose }) {
 
       {/* Sidebar */}
       <div className={`owner-sidebar${sidebarOpen ? ' open' : ''}`}>
-        <div style={{ padding:'20px 16px 12px', borderBottom:'1px solid rgba(255,255,255,.08)' }}>
-          <div style={{ fontFamily:'Space Grotesk', fontWeight:800, fontSize:18, color:'var(--ac)' }}>👑 Owner Panel</div>
-          <div style={{ fontSize:11, color:'rgba(212,184,150,.6)', marginTop:3 }}>GRAPERS Dashboard</div>
+        <div className="sb-header">
+          <div className="sb-logo"><i className="bi bi-gem"/> Owner Panel</div>
+          <div className="sb-sub">GRAPERS Dashboard</div>
         </div>
-        <nav style={{ flex:1, overflowY:'auto', padding:8, WebkitOverflowScrolling:'touch' }}>
+        <nav className="sb-nav">
           {OWNER_TABS.map(item => (
             <div key={item.id}>
-              {item.section && <div style={{ fontSize:9, fontWeight:700, color:'rgba(255,255,255,.3)', letterSpacing:1, textTransform:'uppercase', padding:'10px 8px 3px' }}>{item.section}</div>}
-              <button onClick={() => navigate(item.id)} style={{
-                display:'flex', alignItems:'center', gap:10, padding:'10px 12px', borderRadius:9,
-                color: tab===item.id ? '#fff' : 'rgba(255,255,255,.6)',
-                fontSize:13, fontWeight:600, cursor:'pointer',
-                border:'none', background: tab===item.id ? 'var(--pr)' : 'transparent',
-                width:'100%', textAlign:'left', transition:'all .15s', position:'relative',
-              }}>
-                {tab===item.id && <div style={{ position:'absolute', left:0, top:'50%', transform:'translateY(-50%)', width:3, height:'60%', background:'var(--ac)', borderRadius:'0 3px 3px 0' }}/>}
-                <i className={`bi ${item.icon}`} style={{ fontSize:15, width:18 }}/>{item.label}
+              {item.section && <div className="sb-section">{item.section}</div>}
+              <button className={`sb-item ${tab === item.id ? 'active' : ''}`} onClick={() => navigate(item.id)}>
+                <i className={`bi ${item.icon}`}/>{item.label}
               </button>
             </div>
           ))}
         </nav>
-        <div style={{ padding:'12px 8px', borderTop:'1px solid rgba(255,255,255,.08)' }}>
-          <button onClick={onClose} style={{ display:'flex', alignItems:'center', gap:8, padding:'10px 12px', borderRadius:9, color:'rgba(255,255,255,.4)', fontSize:13, fontWeight:600, cursor:'pointer', border:'none', background:'transparent', width:'100%' }}>
-            <i className="bi bi-x-circle" style={{ fontSize:15 }}/> Tutup Owner Panel
+        <div className="sb-footer">
+          <button className="sb-item" onClick={onClose}>
+            <i className="bi bi-x-circle"/> Tutup Owner Panel
           </button>
         </div>
       </div>

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { UnitService } from '../services/dataServices'
-import { EmptyState } from '../components/UI'
+import { EmptyState, PageHeader, Skeleton, StatusDot } from '../components/UI'
 
 function getMaintenanceItems(unit) {
   const intervals = unit.maintenanceIntervals || { ringan: 250, sedang: 1000, besar: 2000, overhaul: 5000 }
@@ -16,9 +16,9 @@ function getMaintenanceItems(unit) {
 }
 
 const STATUS_CONFIG = {
-  overdue: { color: 'var(--er)', bg: 'rgba(224,82,82,.08)', border: 'rgba(224,82,82,.3)', label: '🔴 Overdue', badgeClass: 'badge-error' },
-  hampir:  { color: 'var(--wn)', bg: 'rgba(245,166,35,.08)', border: 'rgba(245,166,35,.3)', label: '🟡 Hampir Due', badgeClass: 'badge-warn' },
-  sehat:   { color: 'var(--ok)', bg: 'rgba(76,175,130,.06)', border: 'rgba(76,175,130,.2)', label: '🟢 Aman', badgeClass: 'badge-ok' },
+  overdue: { color: 'var(--er)', bg: 'var(--er-bg)', border: 'var(--er-bd)', label: 'Overdue', badgeClass: 'badge-error', dot: 'er' },
+  hampir:  { color: 'var(--wn)', bg: 'var(--wn-bg)', border: 'var(--wn-bd)', label: 'Hampir Due', badgeClass: 'badge-warn', dot: 'warn' },
+  sehat:   { color: 'var(--ok)', bg: 'var(--ok-bg)', border: 'var(--ok-bd)', label: 'Aman', badgeClass: 'badge-ok', dot: 'ok' },
 }
 
 const TYPE_LABEL = { ringan: 'Servis Ringan', sedang: 'Servis Sedang', besar: 'Servis Besar', overhaul: 'Overhaul' }
@@ -44,26 +44,31 @@ export default function MaintenanceCalendarPage() {
     sehat:   allItems.filter(i => i.status === 'sehat').length,
   }
 
-  if (loading) return <div style={{ padding: 40, textAlign: 'center', color: 'var(--mu)' }}>⏳ Memuat...</div>
+  if (loading) {
+    return (
+      <div className="page-enter">
+        <PageHeader icon="bi-calendar2-check-fill" title="Kalender Maintenance" subtitle="Jadwal servis semua unit berdasarkan jam operasi" />
+        <Skeleton rows={4} height={110} />
+      </div>
+    )
+  }
 
   return (
     <div className="page-enter">
-      <div style={{ fontFamily: 'Space Grotesk', fontWeight: 800, fontSize: 18, marginBottom: 4 }}>📅 Kalender Maintenance</div>
-      <div style={{ fontSize: 12, color: 'var(--mu)', marginBottom: 16 }}>Jadwal servis semua unit berdasarkan jam operasi</div>
+      <PageHeader icon="bi-calendar2-check-fill" title="Kalender Maintenance" subtitle="Jadwal servis semua unit berdasarkan jam operasi" />
 
-      {/* Summary pills */}
-      <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
+      {/* Filter pills — pakai warna status */}
+      <div className="filter-pills">
         {[
-          { key: 'all',     label: `Semua (${allItems.length})`,      color: 'var(--pr)' },
-          { key: 'overdue', label: `🔴 Overdue (${counts.overdue})`,  color: 'var(--er)' },
-          { key: 'hampir',  label: `🟡 Hampir (${counts.hampir})`,    color: 'var(--wn)' },
-          { key: 'sehat',   label: `🟢 Aman (${counts.sehat})`,       color: 'var(--ok)' },
+          { key: 'all',     label: `Semua (${allItems.length})`,   color: 'var(--pr)' },
+          { key: 'overdue', label: `Overdue (${counts.overdue})`,  color: 'var(--er)' },
+          { key: 'hampir',  label: `Hampir (${counts.hampir})`,    color: 'var(--wn)' },
+          { key: 'sehat',   label: `Aman (${counts.sehat})`,       color: 'var(--ok)' },
         ].map(({ key, label, color }) => (
-          <button key={key} onClick={() => setFilter(key)} style={{
-            padding: '6px 14px', borderRadius: 20, border: `1.5px solid ${filter === key ? color : 'var(--bd)'}`,
-            background: filter === key ? color + '15' : '#fff', color: filter === key ? color : 'var(--mu)',
-            fontSize: 12, fontWeight: 600, cursor: 'pointer',
-          }}>{label}</button>
+          <button key={key} className={`pill ${filter === key ? 'active' : ''}`} onClick={() => setFilter(key)}
+            style={filter === key ? { background: color, borderColor: color } : undefined}>
+            {label}
+          </button>
         ))}
       </div>
 
@@ -74,19 +79,19 @@ export default function MaintenanceCalendarPage() {
             return (
               <div key={i} style={{
                 background: cfg.bg, border: `1.5px solid ${cfg.border}`,
-                borderRadius: 12, padding: '12px 14px',
+                borderRadius: 'var(--r)', padding: '12px 14px',
               }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 6 }}>
-                  <div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 6, gap: 8 }}>
+                  <div style={{ minWidth: 0 }}>
                     <div style={{ fontWeight: 700, fontSize: 13, color: 'var(--tm)' }}>{item.unit.name}</div>
                     <div style={{ fontSize: 11, color: 'var(--mu)' }}>{item.unit.type} · {item.unit.kodeUnit || '-'}</div>
                   </div>
-                  <span className={`badge ${cfg.badgeClass}`}>{cfg.label}</span>
+                  <StatusDot status={cfg.dot} label={cfg.label} />
                 </div>
-                <div style={{ fontSize: 12, color: 'var(--sb)', fontWeight: 600, marginBottom: 4 }}>
+                <div style={{ fontSize: 12, color: 'var(--sb)', fontWeight: 600, marginBottom: 6 }}>
                   {TYPE_LABEL[item.type] || item.type} (setiap {item.interval.toLocaleString('id-ID')} jam)
                 </div>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 6 }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(90px, 1fr))', gap: 6 }}>
                   {[
                     { l: 'Jam Sekarang', v: `${(item.unit.totalHours || 0).toLocaleString('id-ID')} jam` },
                     { l: 'Terakhir Servis', v: item.lastDone ? `${item.lastDone.toLocaleString('id-ID')} jam` : 'Belum pernah' },
@@ -100,7 +105,7 @@ export default function MaintenanceCalendarPage() {
                   ].map(({ l, v, c }) => (
                     <div key={l} style={{ background: 'rgba(255,255,255,.6)', borderRadius: 8, padding: '6px 8px', textAlign: 'center' }}>
                       <div style={{ fontSize: 11, color: c || 'var(--tm)', fontWeight: 700 }}>{v}</div>
-                      <div style={{ fontSize: 9, color: 'var(--mu)', marginTop: 1 }}>{l}</div>
+                      <div style={{ fontSize: 10, color: 'var(--mu)', marginTop: 1 }}>{l}</div>
                     </div>
                   ))}
                 </div>
