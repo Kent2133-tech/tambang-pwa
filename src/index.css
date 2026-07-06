@@ -88,7 +88,8 @@ h1,h2,h3,h4,h5,h6 { font-family: 'Space Grotesk', sans-serif; }
   position: fixed;
   left: calc(12px + var(--safe-left));
   right: calc(12px + var(--safe-right));
-  bottom: calc(12px + var(--safe-bottom));
+  /* iPhone: duduk pas di atas home indicator (safe-bottom 34px), lainnya: 12px */
+  bottom: max(12px, var(--safe-bottom));
   z-index: 250;
   height: var(--bnav-h);
   background: rgba(255,255,255,.72);
