@@ -7,10 +7,10 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['favicon.ico', 'icons/*.png'],
+      includeAssets: ['favicon.png', 'apple-touch-icon.png', 'icons/*.png'],
       manifest: {
-        name: 'Tambang System — GRAPERS',
-        short_name: 'Tambang',
+        name: 'GRAPERS',
+        short_name: 'GRAPERS',
         description: 'Sistem manajemen alat berat tambang pasir GRAPERS',
         theme_color: '#2C1A0E',
         background_color: '#F1F1F1',
